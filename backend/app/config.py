@@ -1,0 +1,1 @@
+DATABASE_URL="postgresql+psycopg2://postgres:tudipass@localhost:5432/movie_app" 

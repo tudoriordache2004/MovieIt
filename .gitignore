@@ -1,0 +1,44 @@
+# Python / FastAPI
+.venv/
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+.eggs/
+.build/
+dist/
+pip-wheel-metadata/
+*.log
+.env
+.env.*
+*.sqlite3
+
+# Tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Editors/IDE
+.vscode/
+.idea/
+*.iml
+
+# Alembic (păstrează migration scripts, doar cache temp)
+alembic/versions/__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android / Kotlin (dacă adaugi aplicația mobilă)
+**/build/
+**/.gradle/
+local.properties
+*.keystore
+*.jks
+
+features.txt
