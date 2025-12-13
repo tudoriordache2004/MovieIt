@@ -9,7 +9,6 @@ class Genre(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     
-    # Relații
     movies = relationship("MovieGenre", back_populates="genre", cascade="all, delete-orphan")
 
 
@@ -22,6 +21,5 @@ class MovieGenre(Base):
     movie_id = Column(Integer, ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True)
     genre_id = Column(Integer, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True)
     
-    # Relații
     movie = relationship("Movie", back_populates="genres")
     genre = relationship("Genre", back_populates="movies")

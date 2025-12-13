@@ -14,6 +14,5 @@ class Review(Base):
     comment = Column(Text)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     
-    # Relații
     user = relationship("User", back_populates="reviews")
     movie = relationship("Movie", back_populates="reviews")

@@ -13,6 +13,5 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     
-    # Relații
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")

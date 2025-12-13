@@ -17,7 +17,6 @@ class Movie(Base):
     avg_rating = Column(Float, default=0.0)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     
-    # Relații
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
     genres = relationship("MovieGenre", back_populates="movie", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="movie", cascade="all, delete-orphan")

@@ -11,6 +11,5 @@ class Watchlist(Base):
     movie_id = Column(Integer, ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True)
     added_at = Column(TIMESTAMP, default=datetime.utcnow)
     
-    # Relații
     user = relationship("User", back_populates="watchlist_items")
     movie = relationship("Movie", back_populates="watchlist_items")
