@@ -11,3 +11,6 @@ class UserOut(BaseModel):
     email: EmailStr
     username: str
     created_at: datetime
+
+    class Config:
+        from_attributes = True
