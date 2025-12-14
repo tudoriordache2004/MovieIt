@@ -17,7 +17,7 @@ class MovieOut(BaseModel):
     description: Optional[str]
     release_date: Optional[date]
     poster_url: Optional[str]
-    avg_rating: float  # calculat din reviews
+    avg_rating: float  # from reviews
     created_at: datetime
     
     class Config:
