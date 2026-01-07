@@ -8,7 +8,8 @@ class MovieCreate(BaseModel):
     title: str
     description: str
     release_date: date
-    poster_url: Optional[str]
+    poster_url: Optional[str] = None
+    popularity: Optional[float] = None
 
 class MovieOut(BaseModel):
     id: int
