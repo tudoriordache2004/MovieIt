@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.review import Review
 from app.models.user import User
 from app.models.movie import Movie
-from app.schemas.review import ReviewCreate, ReviewOut, ReviewUpdate
+from app.schemas.review import ReviewCreate, ReviewOut, ReviewUpdate, ReviewModerateUpdate
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -191,6 +191,31 @@ def update_review(
     
     return review
 
+@router.put("/{review_id}/moderate", response_model=ReviewOut)
+def moderate_review_comment(
+    review_id: int,
+    payload: ReviewModerateUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("mod", "admin"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    target_user = db.query(User).filter(User.id == review.user_id).first()
+    if not target_user or target_user.role != "user":
+        raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
+
+    if payload.comment is not None:
+        review.comment = payload.comment
+
+    db.commit()
+    db.refresh(review)
+    return review
+
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_review(
     review_id: int,
@@ -221,3 +246,26 @@ def delete_review(
     update_movie_avg_rating(db, movie_id)
     
     return None
+
+@router.delete("/{review_id}/moderate", status_code=204)
+def moderate_delete_review(
+    review_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("mod", "admin"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    target_user = db.query(User).filter(User.id == review.user_id).first()
+    if not target_user or target_user.role != "user":
+        raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
+
+    movie_id = review.movie_id
+    db.delete(review)
+    db.commit()
+
+    update_movie_avg_rating(db, movie_id)

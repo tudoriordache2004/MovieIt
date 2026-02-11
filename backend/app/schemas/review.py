@@ -22,3 +22,6 @@ class ReviewOut(BaseModel):
     
     class Config:
         from_attributes = True
+
+class ReviewModerateUpdate(BaseModel):
+    comment: Optional[str] = None
