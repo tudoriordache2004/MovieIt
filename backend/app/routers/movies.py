@@ -5,7 +5,9 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.movie import Movie
 from app.models.genre import Genre, MovieGenre
-from app.schemas.movie import MovieOut, MovieCreate
+from app.schemas.movie import MovieOut, MovieImport
+from app.services.tmdb import tmdb_service
+
 
 router = APIRouter(prefix="/movies", tags=["movies"])
 
@@ -62,25 +64,43 @@ def get_movie_by_tmdb_id(tmdb_id: int, db: Session = Depends(get_db)):
         )
     return movie
 
-@router.post("/", response_model=MovieOut, status_code=status.HTTP_201_CREATED)
-def create_movie(movie_data: MovieCreate, db: Session = Depends(get_db)):
-    """Creează film nou (folosit la ingestie din TMDB)"""
+@router.post("/", response_model=MovieOut)
+def create_movie(movie_data: MovieImport, db: Session = Depends(get_db)):
+    """Importă film din TMDB după tmdb_id (fără creare manuală)"""
+
+    # 1) Idempotent: dacă există deja, returnează-l
     existing = db.query(Movie).filter(Movie.tmdb_id == movie_data.tmdb_id).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Movie with TMDB id {movie_data.tmdb_id} already exists"
-        )
-    
-    db_movie = Movie(
-        tmdb_id=movie_data.tmdb_id,
-        title=movie_data.title,
-        description=movie_data.description,
-        release_date=movie_data.release_date,
-        poster_url=movie_data.poster_url,
-        popularity=movie_data.popularity
-    )
+        return existing
+
+    # 2) Fetch din TMDB
+    try:
+        tmdb_movie = tmdb_service.get_movie_details(movie_data.tmdb_id)
+    except Exception:
+        # poți diferenția 404 vs rate limit etc, dar pentru început e ok:
+        raise HTTPException(status_code=502, detail="TMDB request failed")
+
+    # 3) Map TMDB -> modelul Movie
+    parsed = tmdb_service.parse_movie_data(tmdb_movie)  # tmdb_id/title/description/release_date/poster_url/popularity
+    db_movie = Movie(**parsed)
+
     db.add(db_movie)
+    db.flush()  # ca să obții db_movie.id înainte de commit
+
+    # 4) Genuri + movie_genres (TMDB details are "genres": [{id, name}, ...])
+    for g in tmdb_movie.get("genres", []):
+        name = (g.get("name") or "").strip()
+        if not name:
+            continue
+
+        genre = db.query(Genre).filter(Genre.name == name).first()
+        if not genre:
+            genre = Genre(name=name)
+            db.add(genre)
+            db.flush()
+
+        db.add(MovieGenre(movie_id=db_movie.id, genre_id=genre.id))
+
     db.commit()
     db.refresh(db_movie)
     return db_movie

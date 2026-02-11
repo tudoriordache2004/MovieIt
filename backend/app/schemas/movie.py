@@ -3,13 +3,8 @@ from datetime import datetime
 from typing import Optional
 from datetime import date
 
-class MovieCreate(BaseModel):
+class MovieImport(BaseModel):
     tmdb_id: int
-    title: str
-    description: str
-    release_date: date
-    poster_url: Optional[str] = None
-    popularity: Optional[float] = None
 
 class MovieOut(BaseModel):
     id: int

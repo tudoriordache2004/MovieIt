@@ -11,6 +11,6 @@ ${PYTHON_BIN} -m venv "${VENV_DIR}"
 echo "[2/2] Activating and installing deps"
 source "${VENV_DIR}/bin/activate"
 pip install --upgrade pip
-pip install fastapi uvicorn[standard] sqlalchemy psycopg2-binary alembic pydantic python-jose[cryptography] passlib bcrypt==4.0.1 pydantic[email]
+pip install fastapi uvicorn[standard] sqlalchemy psycopg2-binary alembic pydantic python-jose[cryptography] passlib bcrypt==4.0.1 pydantic[email] requests
 
 echo "Done. Activate anytime with: source ${VENV_DIR}/bin/activate"

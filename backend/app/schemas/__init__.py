@@ -1,5 +1,5 @@
 from .user import UserCreate, UserOut
-from .movie import MovieOut, MovieCreate
+from .movie import MovieOut, MovieImport
 from .review import ReviewCreate, ReviewOut
 from .watchlist import WatchListCreate, WatchListOut
 from .genre import GenreCreate, GenreOut
@@ -8,7 +8,7 @@ __all__ = [
     "UserCreate",
     "UserOut", 
     "MovieOut",
-    "MovieCreate",
+    "MovieImport",
     "ReviewCreate",
     "ReviewOut",
     "WatchListCreate",

@@ -18,7 +18,6 @@ from app.models.genre import Genre, MovieGenre
 from app.services.tmdb import tmdb_service
 import argparse
 import time
-from typing import Dict
 
 def get_or_create_genre(db: Session, genre_name: str) -> Genre:
     """Găsește sau creează un gen"""

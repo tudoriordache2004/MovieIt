@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
-from time import timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/auth", tags=["auth"])
+bearer_scheme = HTTPBearer()
 
 #Security functions to hash and verify passwords, create and authenticate tokens
 def hash_password(password: str) -> str:
@@ -21,9 +22,9 @@ def hash_password(password: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-def create_access_token(data: dict, expires_minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
+def create_access_token(data: dict, expires_minutes: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    expire = datetime.now(timezone.utc) + (expires_minutes or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -75,22 +76,23 @@ def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
 
 # Dependency pentru user-ul curent (manual)
 def get_current_user(
-    token: str = Depends(get_token_from_header),
-    db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
-    """Obține user-ul curent din JWT token - manual"""
+    token = credentials.credentials  # doar JWT-ul, fără "Bearer"
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username = payload.get("sub")
         if not username:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+
     user = get_user_by_username(db, username)
     if user is None:
         raise credentials_exception
@@ -138,7 +140,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username},
-        expires_delta=access_token_expires
+        expires_minutes=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
