@@ -16,3 +16,4 @@ class User(Base):
     
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
+    diary_entries = relationship("DiaryEntry", back_populates="user", cascade="all, delete-orphan")

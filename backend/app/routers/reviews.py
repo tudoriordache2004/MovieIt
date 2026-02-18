@@ -38,18 +38,6 @@ def create_review(
             detail=f"Movie with id {review_data.movie_id} not found"
         )
     
-    # Verifică dacă user-ul a dat deja review la acest film
-    existing_review = db.query(Review).filter(
-        Review.user_id == current_user.id,
-        Review.movie_id == review_data.movie_id
-    ).first()
-    
-    if existing_review:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already reviewed this movie. Use update instead."
-        )
-    
     # Creează review
     db_review = Review(
         user_id=current_user.id,  # din token, nu din request

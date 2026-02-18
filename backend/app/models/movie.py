@@ -20,3 +20,4 @@ class Movie(Base):
     reviews = relationship("Review", back_populates="movie", cascade="all, delete-orphan")
     genres = relationship("MovieGenre", back_populates="movie", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="movie", cascade="all, delete-orphan")
+    diary_entries = relationship("DiaryEntry", back_populates="movie", cascade="all, delete-orphan")
