@@ -3,8 +3,10 @@ package com.app.movieit.di
 import android.content.Context
 import com.app.movieit.data.api.AuthApi
 import com.app.movieit.data.api.MovieApi
+import com.app.movieit.data.api.ReviewApi
 import com.app.movieit.util.Constants
 import com.app.movieit.data.auth.TokenManager
+import com.app.movieit.data.api.WatchlistApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -73,4 +75,14 @@ object NetworkModule {
     @Singleton
     fun provideMovieApi(retrofit: Retrofit): MovieApi =
         retrofit.create(MovieApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideWatchlistAPI(retrofit: Retrofit): WatchlistApi =
+        retrofit.create(WatchlistApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideReviewApi(retrofit: Retrofit): ReviewApi =
+        retrofit.create(ReviewApi::class.java)
 }

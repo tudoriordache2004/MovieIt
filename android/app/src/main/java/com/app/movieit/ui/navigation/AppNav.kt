@@ -9,6 +9,10 @@ import com.app.movieit.ui.screen.LoginScreen
 import com.app.movieit.ui.screen.MoviesScreen
 import com.app.movieit.ui.screen.RegisterScreen
 import com.app.movieit.util.Routes
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.app.movieit.ui.screen.MovieDetailScreen
+import com.app.movieit.ui.screen.WatchlistScreen
 
 @Composable
 fun AppNav() {
@@ -55,6 +59,28 @@ fun AppNav() {
                         popUpTo(Routes.MOVIES) { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+                onMovieClick = { movieId ->
+                    navController.navigate(Routes.movieDetails(movieId))
+                },
+                onOpenWatchlist = {
+                    navController.navigate(Routes.WATCHLIST)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.MOVIE_DETAILS,
+            arguments = listOf(navArgument("movieId") { type = NavType.IntType })
+        ) {
+            MovieDetailScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.WATCHLIST) {
+            WatchlistScreen(
+                onBack = { navController.popBackStack() },
+                onMovieClick = { movieId ->
+                    navController.navigate(Routes.movieDetails(movieId))
                 }
             )
         }

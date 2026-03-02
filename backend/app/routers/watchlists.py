@@ -1,15 +1,16 @@
 # backend/app/routers/watchlist.py
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models.watchlist import Watchlist
 from app.models.user import User
 from app.models.movie import Movie
-from app.schemas.watchlist import WatchListCreate, WatchListOut
+from app.schemas.watchlist import WatchListCreate, WatchListOut, WatchListWithMovieOut
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
+
 
 @router.post("/", response_model=WatchListOut, status_code=status.HTTP_201_CREATED)
 def add_to_watchlist(
@@ -72,19 +73,22 @@ def remove_from_watchlist(
     
     return None
 
-@router.get("/me", response_model=List[WatchListOut])
+@router.get("/me", response_model=List[WatchListWithMovieOut])
 def get_my_watchlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Listă watchlist-ul user-ului curent"""
-    watchlist_items = db.query(Watchlist).filter(
+    watchlist_items = db.query(Watchlist).options(
+        joinedload(Watchlist.movie) #SQLAlchemy face join-ul pentru a accesa Movie prin joinedLoad
+    ).filter(
         Watchlist.user_id == current_user.id
     ).order_by(Watchlist.added_at.desc()).all()
     
     return watchlist_items
 
-@router.get("/user/{user_id}", response_model=List[WatchListOut])
+
+@router.get("/user/{user_id}", response_model=List[WatchListWithMovieOut])
 def get_user_watchlist(
     user_id: int,
     db: Session = Depends(get_db)
@@ -97,7 +101,9 @@ def get_user_watchlist(
             detail=f"User with id {user_id} not found"
         )
     
-    watchlist_items = db.query(Watchlist).filter(
+    watchlist_items = db.query(Watchlist).options(
+        joinedload(Watchlist.movie) #SQLAlchemy face join-ul pentru a accesa Movie prin joinedLoad
+    ).filter(
         Watchlist.user_id == user_id
     ).order_by(Watchlist.added_at.desc()).all()
     

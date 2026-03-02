@@ -5,4 +5,9 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val MOVIES = "movies"
+
+    const val WATCHLIST = "watchlist"
+
+    const val MOVIE_DETAILS = "movie/{movieId}"
+    fun movieDetails(movieId: Int) = "movie/$movieId"
 }
