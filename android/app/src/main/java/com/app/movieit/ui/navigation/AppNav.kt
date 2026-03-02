@@ -49,7 +49,14 @@ fun AppNav() {
         }
 
         composable(Routes.MOVIES) {
-            MoviesScreen()
+            MoviesScreen(
+                onLoggedOut = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.MOVIES) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
     }
 }
