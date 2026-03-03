@@ -49,7 +49,9 @@ fun MoviesScreen(
     onLoggedOut: () -> Unit,
     onMovieClick: (Int) -> Unit,
     onOpenWatchlist: () -> Unit,
-    viewModel: MoviesViewModel = hiltViewModel()
+    viewModel: MoviesViewModel = hiltViewModel(),
+    shouldRefresh: Boolean,
+    onRefreshHandled: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -58,6 +60,13 @@ fun MoviesScreen(
         if (state.loggedOut) {
             onLoggedOut()
             viewModel.consumeLoggedOut()
+        }
+    }
+
+    LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            viewModel.loadMovies() // Apelează funcția ta din ViewModel care face GET /movies
+            onRefreshHandled()     // Spune Navigării că am rezolvat, pentru a reseta flag-ul
         }
     }
 

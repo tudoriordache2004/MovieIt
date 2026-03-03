@@ -19,7 +19,8 @@ data class ReviewsUiState(
     val reviews: List<ReviewOut> = emptyList(),
     val myRating: Int = 8,
     val myComment: String = "",
-    val posting: Boolean = false
+    val posting: Boolean = false,
+    val reviewPosted: Boolean = false
 )
 
 @HiltViewModel
@@ -73,7 +74,7 @@ class ReviewsViewModel @Inject constructor(
                     ReviewCreate(movieId = movieId, rating = rating, comment = comment)
                 )
                 if (resp.isSuccessful) {
-                    _uiState.update { it.copy(posting = false, myComment = "") }
+                    _uiState.update { it.copy(posting = false, myComment = "", reviewPosted = true) }
                     load() // refresh list
                 } else {
                     _uiState.update { it.copy(posting = false, error = "HTTP ${resp.code()} ${resp.message()}") }
@@ -82,5 +83,9 @@ class ReviewsViewModel @Inject constructor(
                 _uiState.update { it.copy(posting = false, error = e.message) }
             }
         }
+    }
+
+    fun consumeReviewPosted() {
+        _uiState.update { it.copy(reviewPosted = false) }
     }
 }

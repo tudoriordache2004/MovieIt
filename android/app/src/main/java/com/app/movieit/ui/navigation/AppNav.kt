@@ -52,8 +52,16 @@ fun AppNav() {
             )
         }
 
-        composable(Routes.MOVIES) {
+        composable(Routes.MOVIES) { backStackEntry ->
+            val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_movies") ?: false
+            
             MoviesScreen(
+                shouldRefresh = shouldRefresh,
+
+                onRefreshHandled = {
+                    backStackEntry.savedStateHandle["refresh_movies"] = false
+                },
+
                 onLoggedOut = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.MOVIES) { inclusive = true }
@@ -73,7 +81,16 @@ fun AppNav() {
             route = Routes.MOVIE_DETAILS,
             arguments = listOf(navArgument("movieId") { type = NavType.IntType })
         ) {
-            MovieDetailScreen(onBack = { navController.popBackStack() })
+            MovieDetailScreen(
+                onBack = {
+                    // Pentru refresh in frontend la reviews
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh_movies", true)
+
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(Routes.WATCHLIST) {

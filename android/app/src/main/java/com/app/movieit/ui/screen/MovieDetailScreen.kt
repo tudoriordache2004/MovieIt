@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -104,6 +105,15 @@ fun MovieDetailScreen(
                         contentScale = ContentScale.Crop // Taie excesul dar umple frumos containerul
                     )
 
+                    LaunchedEffect(reviewsState.reviewPosted) {
+                        if (reviewsState.reviewPosted) {
+                            // refetch movie -> primești avg_rating nou
+                            viewModel.load()
+
+                            // reset event ca să nu retriggereze la recomposition
+                            reviewsVm.consumeReviewPosted()
+                        }
+                    }
                     Text(
                         text = m.title,
                         style = MaterialTheme.typography.headlineSmall,
