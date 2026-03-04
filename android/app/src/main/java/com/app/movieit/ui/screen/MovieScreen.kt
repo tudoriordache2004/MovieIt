@@ -13,13 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -55,7 +53,6 @@ fun MoviesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // 1) Păstrăm exact flow-ul tău de logout
     LaunchedEffect(state.loggedOut) {
         if (state.loggedOut) {
             onLoggedOut()
@@ -65,83 +62,78 @@ fun MoviesScreen(
 
     LaunchedEffect(shouldRefresh) {
         if (shouldRefresh) {
-            viewModel.loadMovies() // Apelează funcția ta din ViewModel care face GET /movies
-            onRefreshHandled()     // Spune Navigării că am rezolvat, pentru a reseta flag-ul
+            viewModel.loadMovies(state.currentPage)
+            onRefreshHandled()
         }
     }
 
-    // 2) Structură UI standard: app bar + content
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Movies") },
                 actions = {
-                    TextButton(onClick = onOpenWatchlist) {
-                        Text("Watchlist")
-                    }
-                    TextButton(onClick = { viewModel.logout() }) {
-                        Text("Logout")
-                    }
+                    TextButton(onClick = onOpenWatchlist) { Text("Watchlist") }
+                    TextButton(onClick = { viewModel.logout() }) { Text("Logout") }
                 }
             )
         }
     ) { innerPadding ->
         when {
-            state.loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            state.loading -> Box(
+                Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
+
+            state.error != null -> Box(
+                Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error: ${state.error}")
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { viewModel.loadMovies(state.currentPage) }) { Text("Retry") }
                 }
             }
 
-            state.error != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
+            state.movies.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) { Text("No movies found.") }
+
+            else -> Column(modifier = Modifier.padding(innerPadding)) {
+
+                // Grid 3 coloane
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${state.error}")
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { viewModel.loadMovies() }) {
-                            Text("Retry")
-                        }
+                    items(items = state.movies, key = { it.id }) { movie ->
+                        MovieGridItem(movie = movie, onClick = { onMovieClick(movie.id) })
                     }
                 }
-            }
 
-            state.movies.isEmpty() -> {
-                Box(
+                // Paginator: prev/next + indicator pagina
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("No movies found.")
-                }
-            }
+                    TextButton(
+                        onClick = { viewModel.prevPage() },
+                        enabled = state.currentPage > 0
+                    ) { Text("← Prev") }
 
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.padding(innerPadding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = state.movies,
-                        key = { it.id }
-                    ) { movie ->
-                        MovieCard(
-                            movie = movie,
-                            onClick = { onMovieClick(movie.id) }
-                        )
-                    }
+                    Text("Page ${state.currentPage + 1}")
+
+                    TextButton(
+                        onClick = { viewModel.nextPage() },
+                        enabled = state.hasMore
+                    ) { Text("Next →") }
                 }
             }
         }
@@ -149,82 +141,62 @@ fun MoviesScreen(
 }
 
 @Composable
-private fun MovieCard(
-    movie: Movie,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(modifier = Modifier.padding(12.dp)) {
-            Poster(movie = movie)
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = movie.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                val year = movie.releaseDate?.take(4)
-                val rating = String.format(Locale.US, "%.1f", movie.avgRating)
-
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = listOfNotNull(year, "⭐ $rating").joinToString(" • "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                val desc = movie.description?.trim().orEmpty()
-                if (desc.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = desc,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Poster(movie: Movie) {
+private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
     val shape = MaterialTheme.shapes.medium
+    val rating = String.format(Locale.US, "%.1f", movie.avgRating)
+    val year = movie.releaseDate?.take(4) ?: ""
 
-    Box(
+    Column(
         modifier = Modifier
-            .size(width = 92.dp, height = 138.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
+            .clickable { onClick() }
+            .fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (!movie.posterUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = movie.posterUrl,
-                contentDescription = "${movie.title} poster",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Text(
-                text = "No\nposter",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // Poster
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!movie.posterUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = movie.posterUrl,
+                    contentDescription = "${movie.title} poster",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    "No poster",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Titlu
+        Text(
+            text = movie.title,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // An + rating
+        Text(
+            text = listOfNotNull(year.ifBlank { null }, "⭐$rating").joinToString(" "),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

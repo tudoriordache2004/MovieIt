@@ -7,6 +7,8 @@ import com.app.movieit.data.api.ReviewApi
 import com.app.movieit.util.Constants
 import com.app.movieit.data.auth.TokenManager
 import com.app.movieit.data.api.WatchlistApi
+import com.app.movieit.data.api.DiaryApi
+import com.app.movieit.data.auth.SessionManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -85,4 +87,13 @@ object NetworkModule {
     @Singleton
     fun provideReviewApi(retrofit: Retrofit): ReviewApi =
         retrofit.create(ReviewApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSessionManager(): SessionManager = SessionManager()
+
+    @Provides
+    @Singleton
+    fun provideDiaryApi(retrofit: Retrofit): DiaryApi =
+        retrofit.create(DiaryApi::class.java)
 }

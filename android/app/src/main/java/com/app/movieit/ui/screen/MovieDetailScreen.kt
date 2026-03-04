@@ -1,5 +1,6 @@
 package com.app.movieit.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,18 +11,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -32,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,28 +59,32 @@ fun MovieDetailScreen(
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-
     val reviewsVm: ReviewsViewModel = hiltViewModel()
     val reviewsState by reviewsVm.uiState.collectAsState()
+
+    LaunchedEffect(reviewsState.reviewPosted) {
+        if (reviewsState.reviewPosted) {
+            viewModel.load()
+            reviewsVm.consumeReviewPosted()
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Details") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
-                }
+                navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }
             )
         }
     ) { innerPadding ->
         when {
             state.loading -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
 
             state.error != null -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
+                Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -85,73 +96,99 @@ fun MovieDetailScreen(
 
             state.movie != null -> {
                 val m = state.movie!!
-                val year = m.releaseDate?.take(4)
-                val rating = String.format(Locale.US, "%.1f", m.avgRating)
+                val year = m.releaseDate?.take(4) ?: ""
+                val avgRating = String.format(Locale.US, "%.1f", m.avgRating)
 
                 Column(
                     modifier = Modifier
                         .padding(innerPadding)
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    AsyncImage(
-                        model = m.posterUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .width(120.dp) // Setezi o lățime rezonabilă pentru listă
-                            .aspectRatio(2f / 3f) // Menține proporțiile de poster (înălțimea va fi 180.dp)
-                            .clip(RoundedCornerShape(8.dp)), // Colțuri rotunjite pentru estetică
-                        contentScale = ContentScale.Crop // Taie excesul dar umple frumos containerul
-                    )
+                    // --- HEADER: poster stânga + info dreapta ---
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        // Poster
+                        AsyncImage(
+                            model = m.posterUrl,
+                            contentDescription = "${m.title} poster",
+                            modifier = Modifier
+                                .width(140.dp)
+                                .aspectRatio(2f / 3f)
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop
+                        )
 
-                    LaunchedEffect(reviewsState.reviewPosted) {
-                        if (reviewsState.reviewPosted) {
-                            // refetch movie -> primești avg_rating nou
-                            viewModel.load()
+                        // Info dreapta
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = m.title,
+                                style = MaterialTheme.typography.titleLarge,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis
+                            )
 
-                            // reset event ca să nu retriggereze la recomposition
-                            reviewsVm.consumeReviewPosted()
+                            if (year.isNotBlank()) {
+                                Text(
+                                    text = year,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Text(
+                                text = "⭐ $avgRating / 10",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+
+                            // Buton watchlist
+                            val inWatchlist = state.inWatchlist
+                            Button(
+                                onClick = { viewModel.toggleWatchlist() },
+                                enabled = inWatchlist != null && !state.watchlistBusy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    when (inWatchlist) {
+                                        null -> "Checking..."
+                                        true -> "Remove from watchlist"
+                                        false -> "Add to watchlist"
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
-                    Text(
-                        text = m.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
 
-                    Text(
-                        text = listOfNotNull(year, "⭐ $rating").joinToString(" • "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
+                    // --- Descriere ---
                     val desc = m.description?.trim().orEmpty()
                     if (desc.isNotEmpty()) {
-                        Text(desc, style = MaterialTheme.typography.bodyLarge)
+                        Text(desc, style = MaterialTheme.typography.bodyMedium)
                     }
 
-                    val inWatchlist = state.inWatchlist
-                    Button(
-                        onClick = { viewModel.toggleWatchlist() },
-                        enabled = inWatchlist != null && !state.watchlistBusy
-                    ) {
-                        Text(
-                            when (inWatchlist) {
-                                null -> "Checking..."
-                                true -> "Remove from watchlist"
-                                false -> "Add to watchlist"
-                            }
-                        )
-                    }
+                    Divider()
 
+                    // --- Reviews ---
                     ReviewsSection(
                         state = reviewsState,
                         onRatingChange = { reviewsVm.onRatingChange(it) },
                         onCommentChange = { reviewsVm.onCommentChange(it) },
                         onPost = { reviewsVm.postReview() },
-                        onRetry = { reviewsVm.load() }
+                        onRetry = { reviewsVm.load() },
+                        onStartEdit = { reviewsVm.startEdit(it) },
+                        onCancelEdit = { reviewsVm.cancelEdit() },
+                        onEditRatingChange = { reviewsVm.onEditRatingChange(it) },
+                        onEditCommentChange = { reviewsVm.onEditCommentChange(it) },
+                        onSaveEdit = { reviewsVm.saveEdit() },
+                        onDelete = { reviewsVm.deleteReview(it) }
                     )
                 }
             }
@@ -159,13 +196,71 @@ fun MovieDetailScreen(
     }
 }
 
+// ── Star rating (5 stele, click pe stânga/dreapta = half/full) ──────────────
+
+@Composable
+fun StarRatingInput(
+    rating: Int,      // 1..10 (fiecare stea = 2 pași: 1=half, 2=full)
+    onRatingChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (star in 1..5) {
+            val full = rating >= star * 2
+            val half = !full && rating >= star * 2 - 1
+
+            // Fiecare stea e împărțită în două zone de click (half / full)
+            Box(modifier = Modifier.size(36.dp)) {
+                // Icon de bază (goală sau plină)
+                Icon(
+                    imageVector = if (full) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = "$star stars",
+                    tint = if (full || half) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Click stânga (half star) → valoare star*2-1
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.5f)
+                        .align(Alignment.CenterStart)
+                        .clickable { onRatingChange(star * 2 - 1) }
+                )
+
+                // Click dreapta (full star) → valoare star*2
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.5f)
+                        .align(Alignment.CenterEnd)
+                        .clickable { onRatingChange(star * 2) }
+                )
+            }
+        }
+
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "${rating / 2}.${if (rating % 2 == 1) "5" else "0"} / 5",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.align(Alignment.CenterVertically)
+        )
+    }
+}
+
+// ── Reviews section ──────────────────────────────────────────────────────────
+
 @Composable
 fun ReviewsSection(
     state: ReviewsUiState,
     onRatingChange: (Int) -> Unit,
     onCommentChange: (String) -> Unit,
     onPost: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onStartEdit: (ReviewOut) -> Unit,
+    onCancelEdit: () -> Unit,
+    onEditRatingChange: (Int) -> Unit,
+    onEditCommentChange: (String) -> Unit,
+    onSaveEdit: () -> Unit,
+    onDelete: (Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Reviews", style = MaterialTheme.typography.titleLarge)
@@ -173,19 +268,16 @@ fun ReviewsSection(
         if (state.error != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Error: ${state.error}", modifier = Modifier.weight(1f))
-                Spacer(Modifier.height(0.dp))
                 Button(onClick = onRetry) { Text("Retry") }
             }
         }
 
-        // --- Create review form ---
-        Text("Your rating: ${state.myRating}/10", style = MaterialTheme.typography.titleMedium)
+        // Form post review
+        Text("Your rating", style = MaterialTheme.typography.titleMedium)
 
-        Slider(
-            value = state.myRating.toFloat(),
-            onValueChange = { onRatingChange(it.toInt()) },
-            valueRange = 1f..10f,
-            steps = 8 // 1..10 => 9 intervale, steps = intervale-1 = 8
+        StarRatingInput(
+            rating = state.myRating,
+            onRatingChange = onRatingChange
         )
 
         OutlinedTextField(
@@ -208,35 +300,114 @@ fun ReviewsSection(
             if (state.posting) CircularProgressIndicator() else Text("Post review")
         }
 
-        // --- List reviews ---
+        Divider()
+
+        // Lista reviews
         if (state.loading) {
             CircularProgressIndicator()
+        } else if (state.reviews.isEmpty()) {
+            Text("No reviews yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            if (state.reviews.isEmpty()) {
-                Text("No reviews yet.")
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    state.reviews.forEach { review ->
-                        ReviewRow(review)
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                state.reviews.forEach { review ->
+                    ReviewRow(
+                        review = review,
+                        currentUserId = state.currentUserId,
+                        editingReviewId = state.editingReviewId,
+                        editRating = state.editRating,
+                        editComment = state.editComment,
+                        savingEdit = state.savingEdit,
+                        deletingReviewId = state.deletingReviewId,
+                        onEdit = { onStartEdit(review) },
+                        onCancelEdit = onCancelEdit,
+                        onEditRatingChange = onEditRatingChange,
+                        onEditCommentChange = onEditCommentChange,
+                        onSaveEdit = onSaveEdit,
+                        onDelete = { onDelete(review.id) }
+                    )
+                    Divider()
                 }
             }
         }
     }
 }
 
+// ── Review row ───────────────────────────────────────────────────────────────
+
 @Composable
-private fun ReviewRow(review: ReviewOut) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("⭐ ${review.rating}/10", style = MaterialTheme.typography.titleMedium)
+private fun ReviewRow(
+    review: ReviewOut,
+    currentUserId: Int?,
+    editingReviewId: Int?,
+    editRating: Int,
+    editComment: String,
+    savingEdit: Boolean,
+    deletingReviewId: Int?,
+    onEdit: () -> Unit,
+    onCancelEdit: () -> Unit,
+    onEditRatingChange: (Int) -> Unit,
+    onEditCommentChange: (String) -> Unit,
+    onSaveEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val isMine = currentUserId != null && review.userId == currentUserId
+    val isEditing = editingReviewId == review.id
+    val isDeletingThis = deletingReviewId == review.id
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Star display (read-only)
+        if (!isEditing) {
+            StarRatingInput(rating = review.rating, onRatingChange = {})
+        }
+
         val comment = review.comment?.trim().orEmpty()
-        if (comment.isNotEmpty()) {
+        if (!isEditing && comment.isNotEmpty()) {
             Text(comment, style = MaterialTheme.typography.bodyMedium)
         }
+
         Text(
             text = "User #${review.userId} • ${review.createdAt.take(10)}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        if (isMine) {
+            if (!isEditing) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onEdit) { Text("Edit") }
+                    TextButton(
+                        onClick = onDelete,
+                        enabled = !isDeletingThis
+                    ) { Text(if (isDeletingThis) "Deleting..." else "Delete") }
+                }
+            } else {
+                Text("Edit rating", style = MaterialTheme.typography.titleMedium)
+
+                StarRatingInput(
+                    rating = editRating,
+                    onRatingChange = onEditRatingChange
+                )
+
+                OutlinedTextField(
+                    value = editComment,
+                    onValueChange = onEditCommentChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Edit comment") },
+                    minLines = 2
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onSaveEdit,
+                        enabled = !savingEdit
+                    ) { Text(if (savingEdit) "Saving..." else "Save") }
+
+                    TextButton(
+                        onClick = onCancelEdit,
+                        enabled = !savingEdit
+                    ) { Text("Cancel") }
+                }
+            }
+        }
     }
 }

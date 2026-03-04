@@ -1,19 +1,21 @@
 package com.app.movieit.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -26,8 +28,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.app.movieit.data.model.WatchlistItemWithMovie
 import com.app.movieit.ui.viewmodel.WatchlistViewModel
 
@@ -70,15 +77,22 @@ fun WatchlistScreen(
                 contentAlignment = Alignment.Center
             ) { Text("Your watchlist is empty.") }
 
-            else -> LazyColumn(
-                modifier = Modifier.padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            else -> LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.items, key = { "${it.userId}-${it.movie}" }) { item ->
-                    WatchlistRow(
+                items(
+                    items = state.items,
+                    key = { "${it.userId}-${it.movie.id}" }
+                ) { item ->
+                    WatchlistGridItem(
                         item = item,
-                        onClick = { onMovieClick(item.movie.id)}
+                        onClick = { onMovieClick(item.movie.id) }
                     )
                 }
             }
@@ -87,19 +101,64 @@ fun WatchlistScreen(
 }
 
 @Composable
-private fun WatchlistRow(
+private fun WatchlistGridItem(
     item: WatchlistItemWithMovie,
     onClick: () -> Unit
 ) {
-    val date = item.addedAt.take(10) // YYYY-MM-DD din ISO (good enough)
-    Card(
+    val shape = MaterialTheme.shapes.medium
+    val date = item.addedAt.take(10) // YYYY-MM-DD
+
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
             .clickable { onClick() }
+            .fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(item.movie.title, style = MaterialTheme.typography.titleMedium)
-            Text("Added: $date", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // Poster
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!item.movie.posterUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.movie.posterUrl,
+                    contentDescription = "${item.movie.title} poster",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    "No poster",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Titlu
+        Text(
+            text = item.movie.title,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Added at
+        Text(
+            text = "Added: $date",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

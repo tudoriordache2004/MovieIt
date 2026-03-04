@@ -3,6 +3,7 @@ package com.app.movieit.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.movieit.data.api.AuthApi
+import com.app.movieit.data.auth.SessionManager
 import com.app.movieit.data.auth.TokenManager
 import com.app.movieit.data.model.LoginRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,8 @@ data class LoginUiState(
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authApi: AuthApi,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -58,6 +60,17 @@ class LoginViewModel @Inject constructor(
                     }
 
                     tokenManager.saveTokenAndUsername(body.accessToken, username)
+                    val meResp = authApi.getMe()
+                    if (meResp.isSuccessful) {
+                        val me = meResp.body()
+                        if (me != null) {
+                            sessionManager.setUser(
+                                userId = me.id,
+                                username = me.username,
+                                role = null // Nu am role momentan, voi modifica
+                            )
+                        }
+                    }
                     _uiState.update { it.copy(loading = false, loggedIn = true) }
                 } else {
                     _uiState.update {
@@ -67,6 +80,7 @@ class LoginViewModel @Inject constructor(
                         )
                     }
                 }
+
             } catch (e: Exception) {
                 _uiState.update { it.copy(loading = false, error = e.message ?: "Eroare necunoscută.") }
             }

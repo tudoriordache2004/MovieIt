@@ -3,6 +3,7 @@ package com.app.movieit.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.movieit.data.api.AuthApi
+import com.app.movieit.data.auth.SessionManager
 import com.app.movieit.data.model.LoginRequest
 import com.app.movieit.data.model.RegisterRequest
 import com.app.movieit.data.auth.TokenManager
@@ -19,12 +20,13 @@ data class RegisterUiState(
     val password: String = "",
     val loading: Boolean = false,
     val error: String? = null,
-    val registered: Boolean = false
+    val registered: Boolean = false,
 )
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
     private val authApi: AuthApi,
+    private val sessionManager: SessionManager,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -76,6 +78,17 @@ class RegisterViewModel @Inject constructor(
                         return@launch
                     }
                     tokenManager.saveTokenAndUsername(token.accessToken, username)
+                    val meResp = authApi.getMe()
+                    if (meResp.isSuccessful) {
+                        val me = meResp.body()
+                        if (me != null) {
+                            sessionManager.setUser(
+                                userId = me.id,
+                                username = me.username,
+                                role = null // Nu am role momentan, voi modifica
+                            )
+                        }
+                    }
                     _uiState.update { it.copy(loading = false, registered = true) }
                 } else {
                     // cont creat, dar login a eșuat (poți naviga la Login)
