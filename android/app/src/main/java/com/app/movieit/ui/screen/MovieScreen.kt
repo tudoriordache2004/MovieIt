@@ -61,6 +61,7 @@ fun MoviesScreen(
     viewModel: MoviesViewModel = hiltViewModel(),
     shouldRefresh: Boolean,
     onRefreshHandled: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
@@ -162,6 +163,7 @@ fun MoviesScreen(
                     TextButton(onClick = { showFilters = true }) { Text("Filters") }
                     TextButton(onClick = onOpenDiary) { Text("Diary") }
                     TextButton(onClick = onOpenWatchlist) { Text("Watchlist") }
+                    TextButton(onClick = onOpenProfile) { Text("Profile") }
                     TextButton(onClick = { viewModel.logout() }) { Text("Logout") }
                 }
             )

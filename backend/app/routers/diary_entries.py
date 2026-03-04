@@ -103,31 +103,37 @@ def update_diary_entry(
     if payload.watched_on is not None:
         entry.watched_on = payload.watched_on
 
-    # update/create review bound to this diary entry
-    if payload.rating is not None or payload.comment is not None:
+    fields = payload.model_fields_set  # pydantic v2
+
+    if "rating" in fields or "comment" in fields:
         review = db.query(Review).filter(Review.diary_entry_id == entry.id).first()
 
         if not review:
-            review = Review(
-                user_id=current_user.id,
-                movie_id=entry.movie_id,
-                diary_entry_id=entry.id,
-                rating=payload.rating,
-                comment=payload.comment,
-            )
-            db.add(review)
+            # creezi review doar dacă măcar unul e non-null
+            if payload.rating is not None or payload.comment is not None:
+                review = Review(
+                    user_id=current_user.id,
+                    movie_id=entry.movie_id,
+                    diary_entry_id=entry.id,
+                    rating=payload.rating,
+                    comment=payload.comment,
+                )
+                db.add(review)
         else:
-            if payload.rating is not None:
+            if "rating" in fields:
                 review.rating = payload.rating
-            if payload.comment is not None:
+            if "comment" in fields:
                 review.comment = payload.comment
+
+            # dacă după update ambele sunt None/empty → ștergi review-ul
+            if review.rating is None and (review.comment is None or review.comment.strip() == ""):
+                db.delete(review)
 
         db.commit()
         update_movie_avg_rating(db, entry.movie_id)
 
     db.commit()
 
-    # RELOAD cu relationships pentru response embedded
     entry = (
         db.query(DiaryEntry)
         .options(joinedload(DiaryEntry.movie), joinedload(DiaryEntry.review))

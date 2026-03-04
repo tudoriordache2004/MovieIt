@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 data class DiaryLogUiState(
     val watchedOn: String = LocalDate.now().toString(),
-    val rating: Int = 1,
+    val rating: Int? = null,
     val comment: String = "",
     val posting: Boolean = false,
     val error: String? = null,
@@ -42,13 +42,17 @@ class DiaryLogViewModel @Inject constructor(
         _uiState.update { it.copy(rating = value.coerceIn(1, 10), error = null) }
     }
 
+    fun clearRating() {
+        _uiState.update { it.copy(rating = null, error = null) }
+    }
+
     fun onCommentChange(value: String) {
         _uiState.update { it.copy(comment = value, error = null) }
     }
 
     fun logToDiary() {
         val watchedOn = _uiState.value.watchedOn.trim()
-        val rating = _uiState.value.rating.coerceIn(1, 10)
+        val rating = _uiState.value.rating?.coerceIn(1, 10)
         val comment = _uiState.value.comment.trim().ifBlank { null }
 
         // Minim: verificare format basic YYYY-MM-DD

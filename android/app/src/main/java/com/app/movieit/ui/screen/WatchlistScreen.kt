@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -43,9 +44,18 @@ import com.app.movieit.ui.viewmodel.WatchlistViewModel
 fun WatchlistScreen(
     onBack: () -> Unit,
     onMovieClick: (Int) -> Unit,
-    viewModel: WatchlistViewModel = hiltViewModel()
+    viewModel: WatchlistViewModel = hiltViewModel(),
+    shouldRefresh: Boolean, // Refresh la watchlist dupa delete
+    onRefreshHandled: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            viewModel.load() // load() pe shouldRefresh
+            onRefreshHandled() // resetam flag-ul
+        }
+    }
 
     Scaffold(
         topBar = {

@@ -13,6 +13,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.app.movieit.ui.screen.MovieDetailScreen
 import com.app.movieit.ui.screen.MyDiaryScreen
+import com.app.movieit.ui.screen.ProfileScreen
 import com.app.movieit.ui.screen.WatchlistScreen
 
 @Composable
@@ -77,6 +78,9 @@ fun AppNav() {
                 },
                 onOpenDiary = {
                     navController.navigate(Routes.DIARY)
+                },
+                onOpenProfile = {
+                    navController.navigate(Routes.PROFILE)
                 }
             )
         }
@@ -87,18 +91,28 @@ fun AppNav() {
         ) {
             MovieDetailScreen(
                 onBack = {
-                    // Pentru refresh in frontend la reviews
+                    // Pentru refresh in frontend la reviews + watchlist
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("refresh_movies", true)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("refresh_needed", true)
 
                     navController.popBackStack()
                 }
             )
         }
 
-        composable(Routes.WATCHLIST) {
+        composable(Routes.WATCHLIST) { backStackEntry -> // <-- Adaugă backStackEntry aici
+            val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_needed") ?: false
+
             WatchlistScreen(
+                shouldRefresh = shouldRefresh,
+                onRefreshHandled = {
+                    // Dupa refresh in watchlist schimbam flag-ul
+                    backStackEntry.savedStateHandle["refresh_needed"] = false
+                },
                 onBack = { navController.popBackStack() },
                 onMovieClick = { movieId ->
                     navController.navigate(Routes.movieDetails(movieId))
@@ -111,6 +125,19 @@ fun AppNav() {
                 onBack = { navController.popBackStack() },
                 onMovieClick = { movieId ->
                     navController.navigate(Routes.movieDetails(movieId))
+                }
+            )
+        }
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDiary = { navController.navigate(Routes.DIARY) },
+                onOpenWatchlist = { navController.navigate(Routes.WATCHLIST) },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.MOVIES) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             )
         }

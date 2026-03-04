@@ -69,6 +69,7 @@ class MovieDetailViewModel @Inject constructor(
             try {
                 val resp = if (current) {
                     watchlistApi.removeFromWatchlist(movieId)
+
                 } else {
                     watchlistApi.addToWatchlist(WatchlistCreate(movieId))
                 }

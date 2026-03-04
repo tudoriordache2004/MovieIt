@@ -50,7 +50,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import com.app.movieit.ui.viewmodel.DiaryLogViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -202,8 +201,6 @@ fun MovieDetailScreen(
                         Text(desc, style = MaterialTheme.typography.bodyMedium)
                     }
 
-                    Divider()
-
                     // --- Reviews ---
                     ReviewsSection(
                         state = reviewsState,
@@ -230,26 +227,44 @@ fun MovieDetailScreen(
                                 }
 
                                 OutlinedTextField(
-                                    value = diaryLogState.watchedOn,
-                                    onValueChange = { diaryLogVm.onWatchedOnChange(it) },
-                                    label = { Text("Watched on (YYYY-MM-DD)") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                Text("Your rating", style = MaterialTheme.typography.titleMedium)
-                                StarRatingInput(
-                                    rating = diaryLogState.rating,
-                                    onRatingChange = { diaryLogVm.onRatingChange(it) }
-                                )
-
-                                OutlinedTextField(
                                     value = diaryLogState.comment,
                                     onValueChange = { diaryLogVm.onCommentChange(it) },
                                     label = { Text("Comment (optional)") },
                                     minLines = 2,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+
+                                val r = diaryLogState.rating
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Rating", style = MaterialTheme.typography.titleMedium)
+
+                                    if (r == null) {
+                                        Text("(optional)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        TextButton(onClick = { diaryLogVm.onRatingChange(6) }) { // default 3★
+                                            Text("Set")
+                                        }
+                                    } else {
+                                        TextButton(onClick = { diaryLogVm.clearRating() }) {
+                                            Text("Clear")
+                                        }
+                                    }
+                                }
+
+                                if (r != null) {
+                                    StarRatingInput(
+                                        rating = r,
+                                        onRatingChange = { diaryLogVm.onRatingChange(it) }
+                                    )
+                                } else {
+                                    Text(
+                                        "No rating",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         },
                         confirmButton = {
@@ -404,7 +419,6 @@ fun ReviewsSection(
                         onSaveEdit = onSaveEdit,
                         onDelete = { onDelete(review.id) }
                     )
-                    Divider()
                 }
             }
         }

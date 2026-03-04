@@ -9,6 +9,7 @@ import com.app.movieit.data.auth.TokenManager
 import com.app.movieit.data.api.WatchlistApi
 import com.app.movieit.data.api.DiaryApi
 import com.app.movieit.data.auth.SessionManager
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -60,12 +61,18 @@ object NetworkModule {
     // face legatura intre aplicatie si IP-ul backend-ului
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
-        Retrofit.Builder()
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        // gson custom care sa permita serializarea null-urilor prin serializedNulls()
+        val gson = GsonBuilder()
+            .serializeNulls() // permite serializarea null-urilor (important atunci cand ratings/reviews null)
+            .create()
+
+        return Retrofit.Builder()
             .baseUrl(Constants.BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
+    }
 
     // Iau interfetele AuthApi si MovieApi iar Retrofit genereaza codul pentru requests
     @Provides

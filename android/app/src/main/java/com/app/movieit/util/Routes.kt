@@ -9,5 +9,7 @@ object Routes {
     const val MOVIE_DETAILS = "movie/{movieId}"
 
     const val DIARY = "diary"
+
+    const val PROFILE = "profile"
     fun movieDetails(movieId: Int) = "movie/$movieId"
 }
