@@ -28,6 +28,10 @@ class DiaryOut(BaseModel):
     class Config:
         from_attributes = True
 
+# Monitorizez constant count de filme pentru a face fetch-ul la fiecare edit/delete in Diary
+class DiaryCountOut(BaseModel):
+    count: int
+
 
 # Schema necesara pentru a face join-ul cu Movie, sa accesez titlul in diary
 # class DiaryWithMovieOut(BaseModel):

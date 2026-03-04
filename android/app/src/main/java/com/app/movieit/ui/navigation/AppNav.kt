@@ -91,14 +91,14 @@ fun AppNav() {
         ) {
             MovieDetailScreen(
                 onBack = {
-                    // Pentru refresh in frontend la reviews + watchlist
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("refresh_movies", true)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("refresh_needed", true)
-
+                    val prev = navController.previousBackStackEntry
+                    when (prev?.destination?.route) {
+                        // fetch constant la flags pe back button pentru updates
+                        Routes.MOVIES -> prev.savedStateHandle["refresh_movies"] = true
+                        Routes.WATCHLIST -> prev.savedStateHandle["refresh_needed"] = true
+                        Routes.PROFILE -> prev.savedStateHandle["refresh_profile"] = true
+                        Routes.DIARY -> prev.savedStateHandle["refresh_diary"] = true
+                    }
                     navController.popBackStack()
                 }
             )
@@ -113,7 +113,13 @@ fun AppNav() {
                     // Dupa refresh in watchlist schimbam flag-ul
                     backStackEntry.savedStateHandle["refresh_needed"] = false
                 },
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    val prev = navController.previousBackStackEntry
+                    if (prev?.destination?.route == Routes.PROFILE) {
+                        prev.savedStateHandle["refresh_profile"] = true
+                    }
+                    navController.popBackStack()
+                },
                 onMovieClick = { movieId ->
                     navController.navigate(Routes.movieDetails(movieId))
                 }
@@ -122,14 +128,27 @@ fun AppNav() {
 
         composable(Routes.DIARY) {
             MyDiaryScreen(
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    val prev = navController.previousBackStackEntry
+                    if (prev?.destination?.route == Routes.PROFILE) {
+                        prev.savedStateHandle["refresh_profile"] = true
+                    }
+                    navController.popBackStack()
+                },
                 onMovieClick = { movieId ->
                     navController.navigate(Routes.movieDetails(movieId))
                 }
             )
         }
-        composable(Routes.PROFILE) {
+
+        composable(Routes.PROFILE) { backStackEntry ->
+            val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_profile") ?: false
+
             ProfileScreen(
+                shouldRefresh = shouldRefresh,
+                onRefreshHandled = {
+                    backStackEntry.savedStateHandle["refresh_profile"] = false
+                },
                 onBack = { navController.popBackStack() },
                 onOpenDiary = { navController.navigate(Routes.DIARY) },
                 onOpenWatchlist = { navController.navigate(Routes.WATCHLIST) },
@@ -138,7 +157,7 @@ fun AppNav() {
                         popUpTo(Routes.MOVIES) { inclusive = true }
                         launchSingleTop = true
                     }
-                }
+                },
             )
         }
     }

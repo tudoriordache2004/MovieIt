@@ -8,6 +8,7 @@ import com.app.movieit.data.api.WatchlistApi
 import com.app.movieit.data.model.Movie
 import com.app.movieit.data.model.WatchlistCreate
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,6 +82,29 @@ class MovieDetailViewModel @Inject constructor(
                             inWatchlist = !current
                         )
                     }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            watchlistBusy = false,
+                            error = "Watchlist error: HTTP ${resp.code()} ${resp.message()}"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(watchlistBusy = false, error = e.message) }
+            }
+        }
+    }
+
+    fun removeFromWatchlistIfPresent(): Job? {
+        if (_uiState.value.inWatchlist != true) return null
+
+        return viewModelScope.launch {
+            _uiState.update { it.copy(watchlistBusy = true, error = null) }
+            try {
+                val resp = watchlistApi.removeFromWatchlist(movieId)
+                if (resp.isSuccessful) {
+                    _uiState.update { it.copy(inWatchlist = false, watchlistBusy = false) }
                 } else {
                     _uiState.update {
                         it.copy(

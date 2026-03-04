@@ -47,14 +47,14 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
-                val diaryResp = diaryApi.getMyDiary(skip = 0, limit = 1)
+                val diaryCountResp = diaryApi.getDiaryCount()
                 val watchResp = watchlistApi.getMyWatchlist()
                 val reviewsResp = reviewApi.getMyReviews(skip = 0, limit = 1)
 
                 _uiState.update {
                     it.copy(
                         loading = false,
-                        diaryCount = if (diaryResp.isSuccessful) (diaryResp.body()?.size ?: 0) else it.diaryCount,
+                        diaryCount = if (diaryCountResp.isSuccessful) (diaryCountResp.body()?.count ?: 0) else it.diaryCount,
                         watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
                         reviewsCount = if (reviewsResp.isSuccessful) (reviewsResp.body()?.size ?: 0) else it.reviewsCount
                     )

@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,9 +33,18 @@ fun ProfileScreen(
     onOpenDiary: () -> Unit,
     onOpenWatchlist: () -> Unit,
     onLogout: () -> Unit,
+    shouldRefresh: Boolean,
+    onRefreshHandled : () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            viewModel.load()
+            onRefreshHandled()
+        }
+    }
 
     Scaffold(
         topBar = {

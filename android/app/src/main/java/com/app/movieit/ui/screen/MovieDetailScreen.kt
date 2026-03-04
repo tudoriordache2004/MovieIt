@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
@@ -74,6 +75,8 @@ fun MovieDetailScreen(
 
     LaunchedEffect(reviewsState.reviewPosted) {
         if (reviewsState.reviewPosted) {
+            // la review filmul se sterge din watchlist
+            viewModel.removeFromWatchlistIfPresent()?.join()
             viewModel.load()
             reviewsVm.consumeReviewPosted()
         }
@@ -84,7 +87,8 @@ fun MovieDetailScreen(
             showLogDialog = false
             diaryLogVm.consumeLogged()
 
-            // refresh details (pentru avg_rating la diary)
+            // la log filmul se sterge din watchlist
+            viewModel.removeFromWatchlistIfPresent()?.join()
             viewModel.load()
             reviewsVm.load()
         }
@@ -301,13 +305,17 @@ fun StarRatingInput(
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         for (star in 1..5) {
             val full = rating >= star * 2
-            val half = !full && rating >= star * 2 - 1
+            val half = rating == star * 2 - 1
 
             // Fiecare stea e împărțită în două zone de click (half / full)
             Box(modifier = Modifier.size(36.dp)) {
                 // Icon de bază (goală sau plină)
                 Icon(
-                    imageVector = if (full) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    imageVector = when {
+                        full -> Icons.Filled.Star
+                        half -> Icons.Filled.StarHalf
+                        else -> Icons.Outlined.StarOutline
+                    },
                     contentDescription = "$star stars",
                     tint = if (full || half) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxSize()

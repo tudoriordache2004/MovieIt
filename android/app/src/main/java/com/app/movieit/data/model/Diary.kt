@@ -25,3 +25,7 @@ data class DiaryOut(
     val movie: Movie,
     val review: ReviewOut? = null
 )
+
+data class DiaryCountOut(
+    val count: Int
+)

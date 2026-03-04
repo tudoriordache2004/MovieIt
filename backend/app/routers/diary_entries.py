@@ -8,7 +8,7 @@ from app.models.diary_entry import DiaryEntry
 from app.models.review import Review
 from app.models.user import User
 from app.models.movie import Movie
-from app.schemas.diary_entry import DiaryCreate, DiaryUpdate, DiaryOut
+from app.schemas.diary_entry import DiaryCreate, DiaryUpdate, DiaryOut, DiaryCountOut
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/diary", tags=["diary"])
@@ -163,3 +163,17 @@ def delete_diary_entry(
     # dar avg_rating trebuie recalculat
     update_movie_avg_rating(db, movie_id)
     return None
+
+
+@router.get("/me/count", response_model=DiaryCountOut)
+def get_my_diary_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    count = (
+        db.query(func.count(DiaryEntry.id))
+        .filter(DiaryEntry.user_id == current_user.id)
+        .scalar()
+        or 0
+    )
+    return {"count": int(count)}

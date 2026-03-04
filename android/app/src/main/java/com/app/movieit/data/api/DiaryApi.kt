@@ -1,5 +1,6 @@
 package com.app.movieit.data.api
 
+import com.app.movieit.data.model.DiaryCountOut
 import com.app.movieit.data.model.DiaryCreate
 import com.app.movieit.data.model.DiaryOut
 import com.app.movieit.data.model.DiaryUpdate
@@ -27,4 +28,7 @@ interface DiaryApi {
 
     @retrofit2.http.DELETE("diary/{entry_id}")
     suspend fun deleteDiaryEntry(@Path("entry_id") entryId: Int): Response<Unit>
+
+    @retrofit2.http.GET("diary/me/count")
+    suspend fun getDiaryCount(): Response<DiaryCountOut>
 }
