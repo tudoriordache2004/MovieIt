@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.database import get_db
@@ -32,7 +32,6 @@ def add_to_diary(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
-    # multiple entries allowed (same movie + same date)
     entry = DiaryEntry(
         user_id=current_user.id,
         movie_id=payload.movie_id,
@@ -42,8 +41,7 @@ def add_to_diary(
     db.commit()
     db.refresh(entry)
 
-    review = None
-    # creează review dacă user a trimis rating sau comment
+    # create review bound to this diary entry if user sent rating/comment
     if payload.rating is not None or payload.comment is not None:
         review = Review(
             user_id=current_user.id,
@@ -54,19 +52,16 @@ def add_to_diary(
         )
         db.add(review)
         db.commit()
-        db.refresh(review)
         update_movie_avg_rating(db, payload.movie_id)
 
-    return DiaryOut(
-        id=entry.id,
-        user_id=entry.user_id,
-        movie_id=entry.movie_id,
-        watched_on=entry.watched_on,
-        created_at=entry.created_at,
-        review_id=review.id if review else None,
-        rating=review.rating if review else None,
-        comment=review.comment if review else None,
+    # RELOAD cu relationships pentru response embedded
+    entry = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie), joinedload(DiaryEntry.review))
+        .filter(DiaryEntry.id == entry.id)
+        .first()
     )
+    return entry
 
 
 @router.get("/me", response_model=List[DiaryOut])
@@ -78,29 +73,18 @@ def get_my_diary(
 ):
     entries = (
         db.query(DiaryEntry)
+        .options(
+            joinedload(DiaryEntry.movie),
+            joinedload(DiaryEntry.review),
+        )
         .filter(DiaryEntry.user_id == current_user.id)
         .order_by(DiaryEntry.watched_on.desc(), DiaryEntry.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+    return entries
 
-    out: List[DiaryOut] = []
-    for e in entries:
-        r = e.review  # relationship uselist=False
-        out.append(
-            DiaryOut(
-                id=e.id,
-                user_id=e.user_id,
-                movie_id=e.movie_id,
-                watched_on=e.watched_on,
-                created_at=e.created_at,
-                review_id=r.id if r else None,
-                rating=r.rating if r else None,
-                comment=r.comment if r else None,
-            )
-        )
-    return out
 
 
 @router.put("/{entry_id}", response_model=DiaryOut)
@@ -142,19 +126,15 @@ def update_diary_entry(
         update_movie_avg_rating(db, entry.movie_id)
 
     db.commit()
-    db.refresh(entry)
 
-    r = entry.review
-    return DiaryOut(
-        id=entry.id,
-        user_id=entry.user_id,
-        movie_id=entry.movie_id,
-        watched_on=entry.watched_on,
-        created_at=entry.created_at,
-        review_id=r.id if r else None,
-        rating=r.rating if r else None,
-        comment=r.comment if r else None,
+    # RELOAD cu relationships pentru response embedded
+    entry = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie), joinedload(DiaryEntry.review))
+        .filter(DiaryEntry.id == entry_id)
+        .first()
     )
+    return entry
 
 
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

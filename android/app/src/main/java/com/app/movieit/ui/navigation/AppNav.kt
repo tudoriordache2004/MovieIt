@@ -12,6 +12,7 @@ import com.app.movieit.util.Routes
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.app.movieit.ui.screen.MovieDetailScreen
+import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.WatchlistScreen
 
 @Composable
@@ -73,6 +74,9 @@ fun AppNav() {
                 },
                 onOpenWatchlist = {
                     navController.navigate(Routes.WATCHLIST)
+                },
+                onOpenDiary = {
+                    navController.navigate(Routes.DIARY)
                 }
             )
         }
@@ -95,6 +99,15 @@ fun AppNav() {
 
         composable(Routes.WATCHLIST) {
             WatchlistScreen(
+                onBack = { navController.popBackStack() },
+                onMovieClick = { movieId ->
+                    navController.navigate(Routes.movieDetails(movieId))
+                }
+            )
+        }
+
+        composable(Routes.DIARY) {
+            MyDiaryScreen(
                 onBack = { navController.popBackStack() },
                 onMovieClick = { movieId ->
                     navController.navigate(Routes.movieDetails(movieId))

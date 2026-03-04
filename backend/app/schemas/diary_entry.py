@@ -1,34 +1,46 @@
 from pydantic import BaseModel, Field
 from datetime import date, datetime
 from typing import Optional
-
+from app.schemas.movie import MovieOut
+from app.schemas.review import ReviewOut
 
 class DiaryCreate(BaseModel):
-    """Schema pentru adăugare film în diary – poate include și review/rating."""
     movie_id: int
     watched_on: date
-    rating: Optional[int] = Field(None, ge=1, le=10, description="Rating opțional 1-10")
+    rating: Optional[int] = Field(None, ge=1, le=10)
     comment: Optional[str] = None
 
-
 class DiaryUpdate(BaseModel):
-    """Schema pentru actualizare intrare diary."""
     watched_on: Optional[date] = None
     rating: Optional[int] = Field(None, ge=1, le=10)
     comment: Optional[str] = None
 
-
+# Renunt la DiaryWithMovieOut si adaug direct filmul si review-ul in DiaryOut pentru a fi vizibile la /diary
 class DiaryOut(BaseModel):
-    """Schema pentru răspuns diary – include eventualele date din review."""
     id: int
     user_id: int
-    movie_id: int
     watched_on: date
     created_at: datetime
 
-    review_id: Optional[int] = None
-    rating: Optional[int] = None
-    comment: Optional[str] = None
+    movie: MovieOut
+    review: Optional[ReviewOut] = None
 
     class Config:
         from_attributes = True
+
+
+# Schema necesara pentru a face join-ul cu Movie, sa accesez titlul in diary
+# class DiaryWithMovieOut(BaseModel):
+#     id: int
+#     user_id: int
+#     watched_on: date
+#     created_at: datetime
+
+#     movie: MovieOut
+
+#     review_id: Optional[int] = None
+#     rating: Optional[int] = None
+#     comment: Optional[str] = None
+
+#     class Config:
+#         from_attributes = True

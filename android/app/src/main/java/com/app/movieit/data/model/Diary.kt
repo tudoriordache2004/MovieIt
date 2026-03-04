@@ -15,13 +15,13 @@ data class DiaryUpdate(
     val comment: String? = null
 )
 
+// adaug Movie si ReviewOut compuse pentru a fi vizibile in Diary
 data class DiaryOut(
     val id: Int,
     @SerializedName("user_id") val userId: Int,
-    @SerializedName("movie_id") val movieId: Int,
-    @SerializedName("watched_on") val watchedOn: String,   // "YYYY-MM-DD"
-    @SerializedName("created_at") val createdAt: String,   // ISO datetime
-    @SerializedName("review_id") val reviewId: Int? = null,
-    val rating: Int? = null,
-    val comment: String? = null
+    @SerializedName("watched_on") val watchedOn: String,
+    @SerializedName("created_at") val createdAt: String,
+
+    val movie: Movie,
+    val review: ReviewOut? = null
 )

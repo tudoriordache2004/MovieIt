@@ -50,6 +50,7 @@ fun MoviesScreen(
     viewModel: MoviesViewModel = hiltViewModel(),
     shouldRefresh: Boolean,
     onRefreshHandled: () -> Unit,
+    onOpenDiary: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -74,6 +75,7 @@ fun MoviesScreen(
                 actions = {
                     TextButton(onClick = onOpenWatchlist) { Text("Watchlist") }
                     TextButton(onClick = { viewModel.logout() }) { Text("Logout") }
+                    TextButton(onClick = onOpenDiary) { Text("Diary") }
                 }
             )
         }
@@ -94,6 +96,7 @@ fun MoviesScreen(
                     Button(onClick = { viewModel.loadMovies(state.currentPage) }) { Text("Retry") }
                 }
             }
+
 
             state.movies.isEmpty() -> Box(
                 Modifier.fillMaxSize().padding(innerPadding),

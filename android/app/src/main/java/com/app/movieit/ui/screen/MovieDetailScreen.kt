@@ -44,6 +44,14 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import com.app.movieit.ui.viewmodel.DiaryLogViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.app.movieit.data.model.ReviewOut
@@ -60,12 +68,26 @@ fun MovieDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val reviewsVm: ReviewsViewModel = hiltViewModel()
+    val diaryLogVm: DiaryLogViewModel = hiltViewModel()
+    val diaryLogState by diaryLogVm.uiState.collectAsState()
+    var showLogDialog by remember { mutableStateOf(false) }
     val reviewsState by reviewsVm.uiState.collectAsState()
 
     LaunchedEffect(reviewsState.reviewPosted) {
         if (reviewsState.reviewPosted) {
             viewModel.load()
             reviewsVm.consumeReviewPosted()
+        }
+    }
+
+    LaunchedEffect(diaryLogState.logged) {
+        if (diaryLogState.logged) {
+            showLogDialog = false
+            diaryLogVm.consumeLogged()
+
+            // refresh details (pentru avg_rating la diary)
+            viewModel.load()
+            reviewsVm.load()
         }
     }
 
@@ -165,6 +187,12 @@ fun MovieDetailScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                            Button(
+                                onClick = { showLogDialog = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Log to diary")
+                            }
                         }
                     }
 
@@ -191,7 +219,58 @@ fun MovieDetailScreen(
                         onDelete = { reviewsVm.deleteReview(it) }
                     )
                 }
+                if (showLogDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showLogDialog = false },
+                        title = { Text("Log to diary") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                if (diaryLogState.error != null) {
+                                    Text("Error: ${diaryLogState.error}")
+                                }
+
+                                OutlinedTextField(
+                                    value = diaryLogState.watchedOn,
+                                    onValueChange = { diaryLogVm.onWatchedOnChange(it) },
+                                    label = { Text("Watched on (YYYY-MM-DD)") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Text("Your rating", style = MaterialTheme.typography.titleMedium)
+                                StarRatingInput(
+                                    rating = diaryLogState.rating,
+                                    onRatingChange = { diaryLogVm.onRatingChange(it) }
+                                )
+
+                                OutlinedTextField(
+                                    value = diaryLogState.comment,
+                                    onValueChange = { diaryLogVm.onCommentChange(it) },
+                                    label = { Text("Comment (optional)") },
+                                    minLines = 2,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = { diaryLogVm.logToDiary() },
+                                enabled = !diaryLogState.posting
+                            ) {
+                                if (diaryLogState.posting) CircularProgressIndicator() else Text("Save")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { showLogDialog = false },
+                                enabled = !diaryLogState.posting
+                            ) { Text("Cancel") }
+                        }
+                    )
+                }
+
             }
+
         }
     }
 }
@@ -300,7 +379,7 @@ fun ReviewsSection(
             if (state.posting) CircularProgressIndicator() else Text("Post review")
         }
 
-        Divider()
+        HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
 
         // Lista reviews
         if (state.loading) {
