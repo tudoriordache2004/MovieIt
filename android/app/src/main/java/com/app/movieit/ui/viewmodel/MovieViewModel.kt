@@ -19,7 +19,11 @@ data class MoviesUiState(
     val movies: List<Movie> = emptyList(),
     val loggedOut: Boolean = false,
     val currentPage: Int = 0,
-    val hasMore: Boolean = true
+    val hasMore: Boolean = true,
+
+    val search: String = "",
+    val year: Int? = null,
+    val minRating: Float? = null
 )
 
 @HiltViewModel
@@ -42,9 +46,13 @@ class MoviesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
+                val s = _uiState.value
                 val response = movieApi.getMovies(
                     skip = page * pageSize,
-                    limit = 51
+                    limit = pageSize,
+                    year = s.year,
+                    minRating = s.minRating,
+                    search = s.search.takeIf { it.isNotBlank() }
                 )
                 if (response.isSuccessful) {
                     val result = response.body().orEmpty()
@@ -87,5 +95,28 @@ class MoviesViewModel @Inject constructor(
 
     fun consumeLoggedOut() {
         _uiState.update { it.copy(loggedOut = false) }
+    }
+
+    // setarea filtrelor
+    fun setYear(year: Int?) {
+        _uiState.update { it.copy(year = year, currentPage = 0) }
+        loadMovies(0)
+    }
+
+    fun setMinRating(value: Float?) {
+        _uiState.update { it.copy(minRating = value, currentPage = 0) }
+        loadMovies(0)
+    }
+
+    // search
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    fun setSearch(query: String) {
+        _uiState.update { it.copy(search = query, currentPage = 0) }
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(400)
+            loadMovies(0)
+        }
     }
 }

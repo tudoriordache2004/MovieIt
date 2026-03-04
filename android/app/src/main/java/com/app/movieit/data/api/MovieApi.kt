@@ -9,7 +9,10 @@ interface MovieApi {
     @retrofit2.http.GET("movies/")
     suspend fun getMovies(
         @Query("skip") skip: Int = 0,
-        @Query("limit") limit: Int = 100
+        @Query("limit") limit: Int = 100,
+        @Query("year") year: Int? = null,
+        @Query("min_rating") minRating: Float? = null,
+        @Query("search") search: String? = null
     ): Response<List<Movie>>
 
     @retrofit2.http.GET("movies/{movie_id}")
