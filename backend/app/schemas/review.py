@@ -5,19 +5,22 @@ from datetime import datetime
 
 class ReviewCreate(BaseModel):
     movie_id: int
-    rating: int = Field(ge=1, le=10)
+    rating: Optional[int] = Field(None, ge=1, le=10)
     comment: Optional[str] = None
+    is_spoiler: bool = False
 
 class ReviewUpdate(BaseModel):
     rating: Optional[int] = Field(None, ge=1, le=10)
     comment: Optional[str] = None
+    is_spoiler: Optional[bool] = None
 
 class ReviewOut(BaseModel):
     id: int
-    user_id: int  # ar trebui inclus aici dacă vrei să-l vezi în response
+    user_id: int  
     movie_id: int
-    rating: int
+    rating: Optional[int] = None
     comment: Optional[str]
+    is_spoiler: bool
     created_at: datetime
     
     class Config:
@@ -25,3 +28,4 @@ class ReviewOut(BaseModel):
 
 class ReviewModerateUpdate(BaseModel):
     comment: Optional[str] = None
+    is_spoiler: Optional[bool] = None

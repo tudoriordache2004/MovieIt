@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,10 +45,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.app.movieit.ui.viewmodel.DiaryLogViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -217,7 +219,11 @@ fun MovieDetailScreen(
                         onEditRatingChange = { reviewsVm.onEditRatingChange(it) },
                         onEditCommentChange = { reviewsVm.onEditCommentChange(it) },
                         onSaveEdit = { reviewsVm.saveEdit() },
-                        onDelete = { reviewsVm.deleteReview(it) }
+                        onDelete = { reviewsVm.deleteReview(it) },
+                        onSpoilerChange = {reviewsVm.onSpoilerChange(it)},
+                        onEditSpoilerChange = {reviewsVm.onEditSpoilerChange(it)
+                        },
+                        onModerateDeleteReview = { reviewsVm.onModerateDeleteReview(it) }
                     )
                 }
                 if (showLogDialog) {
@@ -362,7 +368,10 @@ fun ReviewsSection(
     onEditRatingChange: (Int) -> Unit,
     onEditCommentChange: (String) -> Unit,
     onSaveEdit: () -> Unit,
-    onDelete: (Int) -> Unit
+    onDelete: (Int) -> Unit,
+    onSpoilerChange: (Boolean) -> Unit,
+    onEditSpoilerChange: (Boolean) -> Unit,
+    onModerateDeleteReview: (Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Reviews", style = MaterialTheme.typography.titleLarge)
@@ -394,6 +403,14 @@ fun ReviewsSection(
             )
         )
 
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = state.myIsSpoiler,
+                onCheckedChange = onSpoilerChange
+            )
+            Text("Contains spoilers")
+        }
+
         Button(
             onClick = onPost,
             enabled = !state.posting,
@@ -412,21 +429,27 @@ fun ReviewsSection(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 state.reviews.forEach { review ->
-                    ReviewRow(
-                        review = review,
-                        currentUserId = state.currentUserId,
-                        editingReviewId = state.editingReviewId,
-                        editRating = state.editRating,
-                        editComment = state.editComment,
-                        savingEdit = state.savingEdit,
-                        deletingReviewId = state.deletingReviewId,
-                        onEdit = { onStartEdit(review) },
-                        onCancelEdit = onCancelEdit,
-                        onEditRatingChange = onEditRatingChange,
-                        onEditCommentChange = onEditCommentChange,
-                        onSaveEdit = onSaveEdit,
-                        onDelete = { onDelete(review.id) }
-                    )
+                    key(review.id) {
+                        ReviewRow(
+                            review = review,
+                            currentUserId = state.currentUserId,
+                            editingReviewId = state.editingReviewId,
+                            editRating = state.editRating,
+                            editComment = state.editComment,
+                            savingEdit = state.savingEdit,
+                            deletingReviewId = state.deletingReviewId,
+                            onEdit = { onStartEdit(review) },
+                            onCancelEdit = onCancelEdit,
+                            onEditRatingChange = onEditRatingChange,
+                            onEditCommentChange = onEditCommentChange,
+                            onSaveEdit = onSaveEdit,
+                            onDelete = { onDelete(review.id) },
+                            editIsSpoiler = state.editIsSpoiler,
+                            onEditSpoilerChange = onEditSpoilerChange,
+                            currentUserRole = state.currentUserRole,
+                            onModerateDeleteReview = { onModerateDeleteReview(review.id)}
+                        )
+                    }
                 }
             }
         }
@@ -449,21 +472,36 @@ private fun ReviewRow(
     onEditRatingChange: (Int) -> Unit,
     onEditCommentChange: (String) -> Unit,
     onSaveEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    editIsSpoiler: Boolean,
+    onEditSpoilerChange: (Boolean) -> Unit,
+    currentUserRole: String?,
+    onModerateDeleteReview: () -> Unit
 ) {
     val isMine = currentUserId != null && review.userId == currentUserId
     val isEditing = editingReviewId == review.id
     val isDeletingThis = deletingReviewId == review.id
+    val canModerate = !isMine && (currentUserRole == "mod" || currentUserRole == "admin")
+
+    var revealed by rememberSaveable(review.id) { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // Star display (read-only)
         if (!isEditing) {
-            StarRatingInput(rating = review.rating, onRatingChange = {})
+            StarRatingInput(rating = review.rating ?: 0, onRatingChange = {})
         }
 
         val comment = review.comment?.trim().orEmpty()
         if (!isEditing && comment.isNotEmpty()) {
-            Text(comment, style = MaterialTheme.typography.bodyMedium)
+            if (review.isSpoiler && !revealed) {
+                Text(
+                    "Spoiler — tap to reveal",
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { revealed = true }
+                )
+            } else {
+                Text(comment, style = MaterialTheme.typography.bodyMedium)
+            }
         }
 
         Text(
@@ -471,6 +509,9 @@ private fun ReviewRow(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+
+        
 
         if (isMine) {
             if (!isEditing) {
@@ -497,6 +538,14 @@ private fun ReviewRow(
                     minLines = 2
                 )
 
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = editIsSpoiler,
+                        onCheckedChange = onEditSpoilerChange
+                    )
+                    Text("Contains spoilers")
+                }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = onSaveEdit,
@@ -509,6 +558,10 @@ private fun ReviewRow(
                     ) { Text("Cancel") }
                 }
             }
+        }
+
+        if (canModerate && !isEditing) {
+            TextButton(onClick = onModerateDeleteReview) { Text("Remove") }
         }
     }
 }

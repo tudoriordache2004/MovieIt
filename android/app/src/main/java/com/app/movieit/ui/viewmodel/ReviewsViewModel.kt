@@ -22,17 +22,24 @@ data class ReviewsUiState(
 
     val currentUserId: Int? = null,
 
-    val myRating: Int = 1,
+    val myRating: Int = 0,
     val myComment: String = "",
     val posting: Boolean = false,
     val reviewPosted: Boolean = false,
 
+    // pentru mark as spoiler din partea user-ului
+    val myIsSpoiler: Boolean = false,
+    val editIsSpoiler: Boolean = false,
+
     // campurile pentru edit/delete
     val editingReviewId: Int? = null,
-    val editRating: Int = 1,
+    val editRating: Int = 0,
     val editComment: String = "",
     val savingEdit: Boolean = false,
     val deletingReviewId: Int? = null,
+
+    // roluri pentru delete/mark as spoiler de catre admin/mods
+    val currentUserRole: String? = null
 )
 
 @HiltViewModel
@@ -51,7 +58,7 @@ class ReviewsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             sessionManager.state.collect { s ->
-                _uiState.update { it.copy(currentUserId = s.userId) }
+                _uiState.update { it.copy(currentUserId = s.userId, currentUserRole = s.role) }
             }
         }
         load()
@@ -77,7 +84,7 @@ class ReviewsViewModel @Inject constructor(
     }
 
     fun onRatingChange(value: Int) {
-        _uiState.update { it.copy(myRating = value,) }
+        _uiState.update { it.copy(myRating = value.coerceIn(0, 10)) }
     }
 
     fun onCommentChange(value: String) {
@@ -85,23 +92,45 @@ class ReviewsViewModel @Inject constructor(
     }
 
     fun postReview() {
-        val rating = _uiState.value.myRating.coerceIn(1, 10)
+        val rawRating = _uiState.value.myRating
+        val rating: Int? = rawRating.takeIf { it in 1..10 } // 0 => null (no rating)
         val comment = _uiState.value.myComment.trim().ifBlank { null }
+        val isSpoiler = _uiState.value.myIsSpoiler
+
+        // nu posta review gol
+        if (rating == null && comment == null) {
+            _uiState.update { it.copy(error = "Add a rating or a comment") }
+            return
+        }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(posting = true,) }
+            _uiState.update { it.copy(posting = true, error = null) }
             try {
                 val resp = reviewApi.createReview(
-                    ReviewCreate(movieId = movieId, rating = rating, comment = comment)
+                    ReviewCreate(
+                        movieId = movieId,
+                        rating = rating,
+                        comment = comment,
+                        isSpoiler = isSpoiler
+                    )
                 )
                 if (resp.isSuccessful) {
-                    _uiState.update { it.copy(posting = false, myComment = "", reviewPosted = true) }
-                    load() // refresh list
+                    _uiState.update {
+                        it.copy(
+                            posting = false,
+                            myRating = 0,
+                            myComment = "",
+                            myIsSpoiler = false,
+                            reviewPosted = true
+                        )
+                    }
+                    load()
                 } else {
                     _uiState.update { it.copy(posting = false, error = "HTTP ${resp.code()} ${resp.message()}") }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(posting = false, error = e.message) }            }
+                _uiState.update { it.copy(posting = false, error = e.message) }
+            }
         }
     }
 
@@ -114,8 +143,9 @@ class ReviewsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 editingReviewId = review.id,
-                editRating = review.rating,
+                editRating = review.rating ?: 1,
                 editComment = review.comment.orEmpty(),
+                editIsSpoiler = review.isSpoiler,
                 error = null
             )
         }
@@ -137,16 +167,17 @@ class ReviewsViewModel @Inject constructor(
         val reviewId = _uiState.value.editingReviewId ?: return
         val rating = _uiState.value.editRating.coerceIn(1, 10)
         val comment = _uiState.value.editComment.trim().ifBlank { null }
+        val isSpoiler = _uiState.value.editIsSpoiler
 
         viewModelScope.launch {
             _uiState.update { it.copy(savingEdit = true, error = null) }
             try {
                 val resp = reviewApi.updateReview(
                     reviewId = reviewId,
-                    body = ReviewUpdate(rating = rating, comment = comment)
+                    body = ReviewUpdate(rating = rating, comment = comment, isSpoiler = isSpoiler),
                 )
                 if (resp.isSuccessful) {
-                    _uiState.update { it.copy(savingEdit = false, editingReviewId = null, reviewPosted = true) }
+                    _uiState.update { it.copy(savingEdit = false, editingReviewId = null, reviewPosted = true, myIsSpoiler = false) }
                     load()
                 } else {
                     _uiState.update { it.copy(savingEdit = false, error = "HTTP ${resp.code()} ${resp.message()}") }
@@ -162,6 +193,32 @@ class ReviewsViewModel @Inject constructor(
             _uiState.update { it.copy(deletingReviewId = reviewId, error = null) }
             try {
                 val resp = reviewApi.deleteReview(reviewId)
+                if (resp.isSuccessful) {
+                    _uiState.update { it.copy(deletingReviewId = null, editingReviewId = null, reviewPosted = true) }
+                    load()
+                } else {
+                    _uiState.update { it.copy(deletingReviewId = null, error = "HTTP ${resp.code()} ${resp.message()}") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(deletingReviewId = null, error = e.message) }
+            }
+        }
+    }
+
+    // Spoiler
+    fun onSpoilerChange(value: Boolean) {
+        _uiState.update { it.copy(myIsSpoiler = value) }
+    }
+
+    fun onEditSpoilerChange(value: Boolean) {
+        _uiState.update { it.copy(editIsSpoiler = value) }
+    }
+
+    fun onModerateDeleteReview(reviewId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingReviewId = reviewId, error = null) }
+            try {
+                val resp = reviewApi.moderateDeleteReview(reviewId)
                 if (resp.isSuccessful) {
                     _uiState.update { it.copy(deletingReviewId = null, editingReviewId = null, reviewPosted = true) }
                     load()

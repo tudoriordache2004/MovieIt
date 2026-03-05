@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, Text, TIMESTAMP, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, Text, Boolean, TIMESTAMP, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
-
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -10,6 +9,8 @@ class Review(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     movie_id = Column(Integer, ForeignKey("movies.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Pentru Mark as Spoiler
+    is_spoiler = Column(Boolean, nullable=False, server_default="false")
 
     # NEW: FK către diary_entries
     diary_entry_id = Column(

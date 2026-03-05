@@ -85,7 +85,7 @@ class RegisterViewModel @Inject constructor(
                             sessionManager.setUser(
                                 userId = me.id,
                                 username = me.username,
-                                role = null // Nu am role momentan, voi modifica
+                                role = me.role
                             )
                         }
                     }

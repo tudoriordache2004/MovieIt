@@ -6,16 +6,13 @@ import com.app.movieit.data.model.TokenResponse
 import com.app.movieit.data.model.UserOut
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.POST
-
 interface AuthApi {
-    @POST("auth/register")
+    @retrofit2.http.POST("auth/register")
     suspend fun register(@Body body: RegisterRequest): Response<UserOut>
 
-    @POST("auth/login")
+    @retrofit2.http.POST("auth/login")
     suspend fun login(@Body body: LoginRequest): Response<TokenResponse>
 
-    @GET("auth/me")
+    @retrofit2.http.GET("auth/me")
     suspend fun getMe(): Response<UserOut>
 }

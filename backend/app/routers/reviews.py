@@ -22,6 +22,7 @@ def update_movie_avg_rating(db: Session, movie_id: int):
     if movie:
         movie.avg_rating = round(avg_rating, 2)
         db.commit()
+    return None
 
 @router.post("/", response_model=ReviewOut, status_code=status.HTTP_201_CREATED)
 def create_review(
@@ -38,12 +39,20 @@ def create_review(
             detail=f"Movie with id {review_data.movie_id} not found"
         )
     
+    #Cazul in care si review si comm sunt null
+    if review_data.rating is None and (review_data.comment is None or review_data.comment.strip() == ""):
+        raise HTTPException(
+            status_code = 422,
+            detail=f"Review cannot be null"
+        )
+    
     # Creează review
     db_review = Review(
         user_id=current_user.id,  # din token, nu din request
         movie_id=review_data.movie_id,
         rating=review_data.rating,
-        comment=review_data.comment
+        comment=review_data.comment,
+        is_spoiler = review_data.is_spoiler
     )
     db.add(db_review)
     db.commit()
@@ -51,7 +60,6 @@ def create_review(
     
     # Recalculează avg_rating pentru film
     update_movie_avg_rating(db, review_data.movie_id)
-    
     return db_review
 
 @router.get("/", response_model=List[ReviewOut])
@@ -170,6 +178,8 @@ def update_review(
         review.rating = review_update.rating
     if review_update.comment is not None:
         review.comment = review_update.comment
+    if review_update.is_spoiler is not None:
+        review.is_spoiler = review_update.is_spoiler
     
     db.commit()
     db.refresh(review)
@@ -194,11 +204,20 @@ def moderate_review_comment(
         raise HTTPException(status_code=404, detail="Review not found")
 
     target_user = db.query(User).filter(User.id == review.user_id).first()
-    if not target_user or target_user.role != "user":
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.role == "mod" and target_user.role != "user":
+        raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
+
+    if current_user.role == "admin" and target_user.role == "admin":
         raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
 
     if payload.comment is not None:
         review.comment = payload.comment
+
+    if payload.is_spoiler is not None:
+        review.is_spoiler = payload.is_spoiler
 
     db.commit()
     db.refresh(review)
@@ -249,7 +268,13 @@ def moderate_delete_review(
         raise HTTPException(status_code=404, detail="Review not found")
 
     target_user = db.query(User).filter(User.id == review.user_id).first()
-    if not target_user or target_user.role != "user":
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.role == "mod" and target_user.role != "user":
+        raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
+
+    if current_user.role == "admin" and target_user.role == "admin":
         raise HTTPException(status_code=403, detail="Cannot moderate this user's review")
 
     movie_id = review.movie_id

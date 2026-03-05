@@ -44,7 +44,7 @@ class LoginViewModel @Inject constructor(
         val password = uiState.value.password
 
         if (username.isBlank() || password.isBlank()) {
-            _uiState.update { it.copy(error = "Completează username/email și parola.") }
+            _uiState.update { it.copy(error = "Complete the username and the password") }
             return
         }
 
@@ -55,7 +55,7 @@ class LoginViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body == null) {
-                        _uiState.update { it.copy(loading = false, error = "Răspuns invalid de la server.") }
+                        _uiState.update { it.copy(loading = false, error = "Invalid response") }
                         return@launch
                     }
 
@@ -67,7 +67,7 @@ class LoginViewModel @Inject constructor(
                             sessionManager.setUser(
                                 userId = me.id,
                                 username = me.username,
-                                role = null // Nu am role momentan, voi modifica
+                                role = me.role
                             )
                         }
                     }
@@ -76,13 +76,13 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             loading = false,
-                            error = "Login eșuat: ${response.code()}"
+                            error = "Login failed: ${response.code()}"
                         )
                     }
                 }
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(loading = false, error = e.message ?: "Eroare necunoscută.") }
+                _uiState.update { it.copy(loading = false, error = e.message ?: "Unknown error.") }
             }
         }
     }
