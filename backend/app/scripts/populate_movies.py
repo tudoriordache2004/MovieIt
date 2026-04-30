@@ -1,7 +1,7 @@
 # backend/scripts/populate_db.py
 """
 Script pentru popularea bazei de date cu date din TMDB API
-Usage: python -m scripts.populate_db [--pages 5] [--source popular|top_rated]
+Usage: python -m scripts.populate_movies [--pages 5] [--source all_time|popular|top_rated]
 """
 import sys
 import os
@@ -53,13 +53,13 @@ def sync_genres(db: Session):
         print(f"  ✗ Eroare la sincronizare genuri: {e}")
         return False
 
-def populate_movies(db: Session, source: str = "popular", num_pages: int = 5):
+def populate_movies(db: Session, source: str = "all_time", num_pages: int = 5):
     """
     Populează baza de date cu filme din TMDB
     
     Args:
         db: Database session
-        source: "popular" sau "top_rated"
+        source: "all_time", "popular" sau "top_rated"
         num_pages: Număr de pagini de preluat (20 filme/pagină)
     """
     print(f"🎬 Populare filme din TMDB ({source}, {num_pages} pagini)...")
@@ -72,9 +72,11 @@ def populate_movies(db: Session, source: str = "popular", num_pages: int = 5):
         print(f"\n📄 Pagina {page}/{num_pages}...")
         
         try:
-            # Preia filme populare sau top-rated
+            # Preia filmele pe baza sursei selectate
             if source == "top_rated":
                 response = tmdb_service.get_top_rated_movies(page=page)
+            elif source == "all_time":
+                response = tmdb_service.get_all_time_popular_movies(page=page)
             else:
                 response = tmdb_service.get_popular_movies(page=page)
             
@@ -154,9 +156,9 @@ def main():
     )
     parser.add_argument(
         "--source",
-        choices=["popular", "top_rated"],
-        default="popular",
-        help="Sursa filmelor: popular sau top_rated (default: popular)"
+        choices=["all_time", "popular", "top_rated"],
+        default="all_time",
+        help="Sursa filmelor: all_time, popular sau top_rated (default: all_time)"
     )
     parser.add_argument(
         "--genres-only",

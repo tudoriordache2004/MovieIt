@@ -12,3 +12,8 @@ python-dotenv
 python-multipart
 transformers
 torch
+sentence-transformers
+numpy
+sentencepiece 
+tiktoken
+protobuf

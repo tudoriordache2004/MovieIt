@@ -69,4 +69,16 @@ class TMDBService:
             "name": tmdb_genre.get("name", "")
         }
 
+    def get_all_time_popular_movies(self, page: int = 1):
+        """Preia cele mai populare filme din toate timpurile (bazat pe numărul de voturi)"""
+        return self._make_request(
+            "discover/movie",
+            params={
+                "page": page,
+                "sort_by": "vote_count.desc",
+                "include_adult": False,
+                "include_video": False
+            }
+        )
+
 tmdb_service = TMDBService()
