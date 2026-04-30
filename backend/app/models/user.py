@@ -13,6 +13,7 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     role = Column(String(10), nullable=False, server_default="user")  # "user" | "mod" | "admin"
+    profile_picture_url = Column(String(500), nullable=True)
     
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")

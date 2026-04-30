@@ -28,6 +28,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -74,6 +76,21 @@ fun MovieDetailScreen(
     val diaryLogState by diaryLogVm.uiState.collectAsState()
     var showLogDialog by remember { mutableStateOf(false) }
     val reviewsState by reviewsVm.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(reviewsState.autoMarkedSpoiler) {
+        if (reviewsState.autoMarkedSpoiler) {
+            snackbarHostState.showSnackbar("Your review was automatically marked as potentially containing spoilers")
+            reviewsVm.consumeAutoMarkedSpoiler()
+        }
+    }
+
+    LaunchedEffect(reviewsState.submissionError) {
+        reviewsState.submissionError?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            reviewsVm.consumeSubmissionError()
+        }
+    }
 
     LaunchedEffect(reviewsState.reviewPosted) {
         if (reviewsState.reviewPosted) {
@@ -102,7 +119,8 @@ fun MovieDetailScreen(
                 title = { Text("Details") },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Back") } }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         when {
             state.loading -> Box(

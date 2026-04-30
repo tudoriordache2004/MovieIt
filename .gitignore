@@ -42,3 +42,5 @@ local.properties
 *.jks
 
 features.txt
+
+CLAUDE.md

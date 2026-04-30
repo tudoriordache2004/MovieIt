@@ -1,11 +1,23 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware #Android app
+from fastapi.staticfiles import StaticFiles
 from app.routers import auth, movies, reviews, genres, watchlists, diary_entries
+from app.services.spoiler_detector import get_classifier as get_spoiler_classifier
+from app.services.vulgarity_filter import get_classifier as get_vulgarity_classifier
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_spoiler_classifier()
+    get_vulgarity_classifier()
+    yield
 
 app = FastAPI(
     title="Movie Review API",
     description="API pentru aplicația de review-uri filme",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -23,6 +35,10 @@ app.include_router(reviews.router)
 app.include_router(genres.router)
 app.include_router(watchlists.router)
 app.include_router(diary_entries.router)
+
+uploads_path = Path("uploads")
+uploads_path.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
 
 @app.get("/")
 def root():

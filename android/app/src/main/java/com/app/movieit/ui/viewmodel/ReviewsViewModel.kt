@@ -14,6 +14,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.ResponseBody
+import org.json.JSONObject
+
+private fun parseErrorDetail(body: ResponseBody?, fallback: String): String {
+    val raw = body?.string().orEmpty()
+    if (raw.isBlank()) return fallback
+    return try {
+        JSONObject(raw).optString("detail").ifBlank { fallback }
+    } catch (_: Exception) {
+        fallback
+    }
+}
 
 data class ReviewsUiState(
     val loading: Boolean = true,
@@ -39,7 +51,12 @@ data class ReviewsUiState(
     val deletingReviewId: Int? = null,
 
     // roluri pentru delete/mark as spoiler de catre admin/mods
-    val currentUserRole: String? = null
+    val currentUserRole: String? = null,
+
+    val autoMarkedSpoiler: Boolean = false,
+
+    // shown via snackbar (e.g. vulgarity rejection from backend)
+    val submissionError: String? = null,
 )
 
 @HiltViewModel
@@ -115,27 +132,38 @@ class ReviewsViewModel @Inject constructor(
                     )
                 )
                 if (resp.isSuccessful) {
+                    val wasAutoMarked = resp.body()!!.isSpoiler && !isSpoiler
                     _uiState.update {
                         it.copy(
                             posting = false,
                             myRating = 0,
                             myComment = "",
                             myIsSpoiler = false,
-                            reviewPosted = true
+                            reviewPosted = true,
+                            autoMarkedSpoiler = wasAutoMarked
                         )
                     }
                     load()
                 } else {
-                    _uiState.update { it.copy(posting = false, error = "HTTP ${resp.code()} ${resp.message()}") }
+                    val msg = parseErrorDetail(resp.errorBody(), "HTTP ${resp.code()} ${resp.message()}")
+                    _uiState.update { it.copy(posting = false, submissionError = msg) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(posting = false, error = e.message) }
+                _uiState.update { it.copy(posting = false, submissionError = e.message) }
             }
         }
     }
 
+    fun consumeSubmissionError() {
+        _uiState.update { it.copy(submissionError = null) }
+    }
+
     fun consumeReviewPosted() {
         _uiState.update { it.copy(reviewPosted = false) }
+    }
+
+    fun consumeAutoMarkedSpoiler() {
+        _uiState.update { it.copy(autoMarkedSpoiler = false) }
     }
 
     // EDIT
@@ -177,13 +205,15 @@ class ReviewsViewModel @Inject constructor(
                     body = ReviewUpdate(rating = rating, comment = comment, isSpoiler = isSpoiler),
                 )
                 if (resp.isSuccessful) {
-                    _uiState.update { it.copy(savingEdit = false, editingReviewId = null, reviewPosted = true, myIsSpoiler = false) }
+                    val wasAutoMarked = resp.body()!!.isSpoiler && !isSpoiler
+                    _uiState.update { it.copy(savingEdit = false, editingReviewId = null, reviewPosted = true, myIsSpoiler = false, autoMarkedSpoiler = wasAutoMarked) }
                     load()
                 } else {
-                    _uiState.update { it.copy(savingEdit = false, error = "HTTP ${resp.code()} ${resp.message()}") }
+                    val msg = parseErrorDetail(resp.errorBody(), "HTTP ${resp.code()} ${resp.message()}")
+                    _uiState.update { it.copy(savingEdit = false, submissionError = msg) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(savingEdit = false, error = e.message) }
+                _uiState.update { it.copy(savingEdit = false, submissionError = e.message) }
             }
         }
     }

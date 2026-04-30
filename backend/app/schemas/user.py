@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     username: str
     created_at: datetime
     role: str
+    profile_picture_url: str | None = None
 
     class Config:
         from_attributes = True

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, status, Header, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -10,6 +11,9 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserOut
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from passlib.context import CryptContext
+
+UPLOADS_DIR = Path("uploads/profile_pictures")
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -147,4 +151,28 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def read_users_me(current_user: User = Depends(get_current_user)):
     """Obține informații despre user-ul curent - manual"""
+    return current_user
+
+@router.put("/me/profile-picture", response_model=UserOut)
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG and WebP images are allowed")
+
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+    filename = f"{current_user.id}.{ext}"
+    dest = UPLOADS_DIR / filename
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 5 MB")
+
+    dest.write_bytes(contents)
+
+    current_user.profile_picture_url = f"/uploads/profile_pictures/{filename}"
+    db.commit()
+    db.refresh(current_user)
     return current_user

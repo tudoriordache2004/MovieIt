@@ -7,8 +7,7 @@ import sys
 import os
 from pathlib import Path
 
-# Adaugă backend/app la path pentru imports
-backend_path = Path(__file__).parent.parent
+backend_path = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(backend_path))
 
 from sqlalchemy.orm import Session
