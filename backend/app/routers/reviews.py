@@ -166,6 +166,20 @@ def get_reviews_by_user(
     return reviews
 
 
+@router.get("/me/count")
+def get_my_reviews_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    count = (
+        db.query(func.count(Review.id))
+        .filter(Review.user_id == current_user.id)
+        .scalar()
+        or 0
+    )
+    return {"count": int(count)}
+
+
 @router.get("/me", response_model=List[ReviewOut])
 def get_my_reviews(
     skip: int = Query(0, ge=0),

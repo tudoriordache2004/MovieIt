@@ -1,6 +1,6 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.database import get_db
 from app.models.movie import Movie
@@ -43,13 +43,13 @@ def get_movies(
     if search:
         query = query.filter(Movie.title.ilike(f"%{search}%"))
     
-    movies = query.order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc()).offset(skip).limit(limit).all()
+    movies = query.options(joinedload(Movie.genre_list)).order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc()).offset(skip).limit(limit).all()
     return movies
 
 @router.get("/{movie_id}", response_model=MovieOut)
 def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
     """Obține film după ID"""
-    movie = db.query(Movie).filter(Movie.id == movie_id).first()
+    movie = db.query(Movie).options(joinedload(Movie.genre_list)).filter(Movie.id == movie_id).first()
     if not movie:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

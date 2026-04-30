@@ -1,7 +1,7 @@
 # backend/app/routers/watchlist.py
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, contains_eager
 from app.database import get_db
 from app.models.watchlist import Watchlist
 from app.models.user import User
@@ -80,11 +80,11 @@ def get_my_watchlist(
 ):
     """Listă watchlist-ul user-ului curent"""
     watchlist_items = db.query(Watchlist).options(
-        joinedload(Watchlist.movie) #SQLAlchemy face join-ul pentru a accesa Movie prin joinedLoad
+        joinedload(Watchlist.movie).joinedload(Movie.genre_list)
     ).filter(
         Watchlist.user_id == current_user.id
     ).order_by(Watchlist.added_at.desc()).all()
-    
+
     return watchlist_items
 
 
@@ -100,9 +100,9 @@ def get_user_watchlist(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with id {user_id} not found"
         )
-    
+
     watchlist_items = db.query(Watchlist).options(
-        joinedload(Watchlist.movie) #SQLAlchemy face join-ul pentru a accesa Movie prin joinedLoad
+        joinedload(Watchlist.movie).joinedload(Movie.genre_list)
     ).filter(
         Watchlist.user_id == user_id
     ).order_by(Watchlist.added_at.desc()).all()

@@ -10,8 +10,12 @@ from app.models.user import User
 from app.models.movie import Movie
 from app.schemas.diary_entry import DiaryCreate, DiaryUpdate, DiaryOut, DiaryCountOut
 from app.routers.auth import get_current_user
+from app.services.spoiler_detector import predict_spoiler
+from app.services.vulgarity_filter import is_vulgar
 
 router = APIRouter(prefix="/diary", tags=["diary"])
+
+VULGARITY_REJECTION_MESSAGE = "Your review contains inappropriate language and cannot be posted."
 
 
 def update_movie_avg_rating(db: Session, movie_id: int):
@@ -32,6 +36,12 @@ def add_to_diary(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
 
+    comment = payload.comment.strip() if payload.comment else ""
+
+    # Validate review text before creating anything in the DB
+    if comment and is_vulgar(comment):
+        raise HTTPException(status_code=400, detail=VULGARITY_REJECTION_MESSAGE)
+
     entry = DiaryEntry(
         user_id=current_user.id,
         movie_id=payload.movie_id,
@@ -41,20 +51,22 @@ def add_to_diary(
     db.commit()
     db.refresh(entry)
 
-    # create review bound to this diary entry if user sent rating/comment
-    if payload.rating is not None or payload.comment is not None:
+    # Create review bound to this diary entry if user sent rating/comment
+    if payload.rating is not None or comment:
+        suggested_is_spoiler = predict_spoiler(comment) if comment else False
         review = Review(
             user_id=current_user.id,
             movie_id=payload.movie_id,
             diary_entry_id=entry.id,
             rating=payload.rating,
             comment=payload.comment,
+            is_spoiler=suggested_is_spoiler,
         )
         db.add(review)
         db.commit()
         update_movie_avg_rating(db, payload.movie_id)
 
-    # RELOAD cu relationships pentru response embedded
+    # Reload with relationships for embedded response
     entry = (
         db.query(DiaryEntry)
         .options(joinedload(DiaryEntry.movie), joinedload(DiaryEntry.review))
@@ -106,17 +118,24 @@ def update_diary_entry(
     fields = payload.model_fields_set  # pydantic v2
 
     if "rating" in fields or "comment" in fields:
+        new_comment = payload.comment.strip() if payload.comment else ""
+
+        # Reject vulgar comment before touching the DB
+        if new_comment and is_vulgar(new_comment):
+            raise HTTPException(status_code=400, detail=VULGARITY_REJECTION_MESSAGE)
+
         review = db.query(Review).filter(Review.diary_entry_id == entry.id).first()
 
         if not review:
-            # creezi review doar dacă măcar unul e non-null
-            if payload.rating is not None or payload.comment is not None:
+            if payload.rating is not None or new_comment:
+                suggested_is_spoiler = predict_spoiler(new_comment) if new_comment else False
                 review = Review(
                     user_id=current_user.id,
                     movie_id=entry.movie_id,
                     diary_entry_id=entry.id,
                     rating=payload.rating,
                     comment=payload.comment,
+                    is_spoiler=suggested_is_spoiler,
                 )
                 db.add(review)
         else:
@@ -124,8 +143,10 @@ def update_diary_entry(
                 review.rating = payload.rating
             if "comment" in fields:
                 review.comment = payload.comment
+                suggested_is_spoiler = predict_spoiler(new_comment) if new_comment else False
+                review.is_spoiler = suggested_is_spoiler
 
-            # dacă după update ambele sunt None/empty → ștergi review-ul
+            # If both fields are now empty, remove the review
             if review.rating is None and (review.comment is None or review.comment.strip() == ""):
                 db.delete(review)
 
