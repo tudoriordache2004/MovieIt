@@ -21,7 +21,7 @@ fun AuthGateScreen(
     LaunchedEffect(state) {
         when (state) {
             AuthGateState.Authed -> {
-                navController.navigate(Routes.MOVIES) {
+                navController.navigate(Routes.HOME) {
                     popUpTo(Routes.AUTH_GATE) { inclusive = true }
                     launchSingleTop = true
                 }

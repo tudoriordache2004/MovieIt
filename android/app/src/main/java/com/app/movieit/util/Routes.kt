@@ -4,6 +4,7 @@ object Routes {
     const val AUTH_GATE = "auth_gate" // AuthGate verifica daca utilizatorul este autentificat sa stie catre ce View sa redirectioneze
     const val LOGIN = "login"
     const val REGISTER = "register"
+    const val HOME = "home"
     const val MOVIES = "movies"
     const val WATCHLIST = "watchlist"
     const val MOVIE_DETAILS = "movie/{movieId}"

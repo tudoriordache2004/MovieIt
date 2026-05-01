@@ -1,7 +1,7 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, select, or_, and_
 from app.database import get_db
 from app.models.movie import Movie
 from app.models.genre import Genre, MovieGenre
@@ -15,34 +15,41 @@ router = APIRouter(prefix="/movies", tags=["movies"])
 def get_movies(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=0, le=100, description="Number of records to return"),
-    genre_id: Optional[int] = Query(None, description="Filter by genre ID"),
-    year: Optional[int] = Query(None, description="Filter by release year"),
+    genre_ids: Optional[List[int]] = Query(default=None, description="Filter by genre IDs (AND logic)"),
+    decades: Optional[List[int]] = Query(default=None, description="Filter by decades e.g. 1990, 2000 (OR logic)"),
     min_rating: Optional[float] = Query(None, ge=0, le=10, description="Minimum average rating"),
     search: Optional[str] = Query(None, description="Search by title"),
     db: Session = Depends(get_db)
 ):
-    """Listă filme cu paginare și filtre"""
     query = db.query(Movie)
 
-    # hardcodat pt a evita http 422, nu ramane asa
     if limit == 0:
         limit = 51
-    
-    # many-to-many MovieGenre
-    if genre_id:
-        query = query.join(MovieGenre).filter(MovieGenre.genre_id == genre_id)
-    
-    if year:
-        query = query.filter(
-            func.extract('year', Movie.release_date) == year
-        )
-    
+
+    # AND logic: movie must belong to every selected genre
+    if genre_ids:
+        for gid in genre_ids:
+            query = query.filter(
+                Movie.id.in_(select(MovieGenre.movie_id).where(MovieGenre.genre_id == gid))
+            )
+
+    # OR logic: movie release year falls within any selected decade range
+    if decades:
+        decade_conditions = [
+            and_(
+                func.extract('year', Movie.release_date) >= d,
+                func.extract('year', Movie.release_date) <= d + 9
+            )
+            for d in decades
+        ]
+        query = query.filter(or_(*decade_conditions))
+
     if min_rating is not None:
         query = query.filter(Movie.avg_rating >= min_rating)
-    
+
     if search:
-        query = query.filter(Movie.title.ilike(f"%{search}%"))
-    
+        query = query.filter(Movie.title.ilike(f"{search}%"))
+
     movies = query.options(joinedload(Movie.genre_list)).order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc()).offset(skip).limit(limit).all()
     return movies
 

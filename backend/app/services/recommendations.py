@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.diary_entry import DiaryEntry
 from app.models.movie import Movie
 from app.models.movie_embedding import MovieEmbedding
 from app.models.review import Review
@@ -54,7 +55,8 @@ MOOD_MESSAGES = {
     "gritty": "Want something rough around the edges? These picks have that bite.",
 }
 
-DEFAULT_HOME_MESSAGE = "Not sure what to watch next? These picks are a good place to start."
+DEFAULT_HOME_MESSAGE = "Ready to find something worth watching? Start with these picks."
+DIARY_ENTRY_WEIGHT = 0.35
 
 
 @lru_cache(maxsize=1)
@@ -120,6 +122,15 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
         )
         .all()
     )
+    diary_entries = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie).joinedload(Movie.genre_list))
+        .filter(DiaryEntry.user_id == user_id)
+        .all()
+    )
+    reviewed_movie_ids = {
+        movie_id for (movie_id,) in db.query(Review.movie_id).filter(Review.user_id == user_id).all()
+    }
 
     weighted_vectors = []
     weights = []
@@ -163,6 +174,22 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
                 weighted_vectors.append(np.array(movie_embedding.embedding, dtype=np.float32) * weight)
                 weights.append(weight)
 
+    for entry in diary_entries:
+        if entry.movie_id in reviewed_movie_ids:
+            continue
+
+        movie_embedding = (
+            db.query(MovieEmbedding)
+            .filter(MovieEmbedding.movie_id == entry.movie_id)
+            .first()
+        )
+
+        if not movie_embedding:
+            continue
+
+        weighted_vectors.append(np.array(movie_embedding.embedding, dtype=np.float32) * DIARY_ENTRY_WEIGHT)
+        weights.append(DIARY_ENTRY_WEIGHT)
+
     if not weighted_vectors or not weights:
         return None, strongest_sentiment
 
@@ -183,6 +210,12 @@ def format_genre_list(genres: list[str]) -> str:
 
 
 def build_recommendation_reason(sentiment: str, matched_genres: list[str]) -> str:
+    if matched_genres and sentiment == "positive":
+        return (
+            "Because you loved similar movies, this one also matches your taste "
+            f"for {format_genre_list(matched_genres)}."
+        )
+
     if matched_genres:
         return f"Recommended because it shares your taste for {format_genre_list(matched_genres)}."
 
@@ -202,6 +235,15 @@ def get_user_taste_genres(db: Session, user_id: int, min_rating: int = 8) -> lis
         )
         .all()
     )
+    diary_entries = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie).joinedload(Movie.genre_list))
+        .filter(DiaryEntry.user_id == user_id)
+        .all()
+    )
+    reviewed_movie_ids = {
+        movie_id for (movie_id,) in db.query(Review.movie_id).filter(Review.user_id == user_id).all()
+    }
 
     genre_scores: dict[str, float] = {}
 
@@ -210,6 +252,13 @@ def get_user_taste_genres(db: Session, user_id: int, min_rating: int = 8) -> lis
 
         for genre_name in get_movie_genre_names(review.movie):
             genre_scores[genre_name] = genre_scores.get(genre_name, 0.0) + rating_weight
+
+    for entry in diary_entries:
+        if entry.movie_id in reviewed_movie_ids:
+            continue
+
+        for genre_name in get_movie_genre_names(entry.movie):
+            genre_scores[genre_name] = genre_scores.get(genre_name, 0.0) + DIARY_ENTRY_WEIGHT
 
     return [
         genre_name
@@ -237,7 +286,7 @@ def get_recommendations_for_user(db: Session, user_id: int, limit: int = 6, min_
             {
                 "movie": movie,
                 "score": 0.0,
-                "reason": "Încă nu avem suficiente review-uri pozitive de la tine, așa că îți arătăm filme populare și bine cotate.",
+                "reason": "Need a fresh start? Check it out!",
                 "movie_genres": get_movie_genre_names(movie),
                 "matched_genres": [],
             }
@@ -249,12 +298,16 @@ def get_recommendations_for_user(db: Session, user_id: int, limit: int = 6, min_
     reviewed_movie_ids = {
         movie_id for (movie_id,) in db.query(Review.movie_id).filter(Review.user_id == user_id).all()
     }
+    diary_movie_ids = {
+        movie_id for (movie_id,) in db.query(DiaryEntry.movie_id).filter(DiaryEntry.user_id == user_id).all()
+    }
+    seen_movie_ids = reviewed_movie_ids | diary_movie_ids
 
     candidates = (
         db.query(MovieEmbedding)
         .join(Movie)
         .options(joinedload(MovieEmbedding.movie).joinedload(Movie.genre_list))
-        .filter(~MovieEmbedding.movie_id.in_(reviewed_movie_ids))
+        .filter(~MovieEmbedding.movie_id.in_(seen_movie_ids))
         .all()
     )
 
@@ -333,9 +386,15 @@ def infer_user_taste_context(db: Session, user_id: int, min_rating: int = 8) -> 
         )
         .all()
     )
-
-    if not reviews:
-        return None
+    diary_entries = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie).joinedload(Movie.genre_list))
+        .filter(DiaryEntry.user_id == user_id)
+        .all()
+    )
+    reviewed_movie_ids = {
+        movie_id for (movie_id,) in db.query(Review.movie_id).filter(Review.user_id == user_id).all()
+    }
 
     genre_scores: dict[str, float] = {}
 
@@ -344,6 +403,13 @@ def infer_user_taste_context(db: Session, user_id: int, min_rating: int = 8) -> 
 
         for genre_name in get_movie_genre_names(review.movie):
             genre_scores[genre_name] = genre_scores.get(genre_name, 0.0) + rating_weight
+
+    for entry in diary_entries:
+        if entry.movie_id in reviewed_movie_ids:
+            continue
+
+        for genre_name in get_movie_genre_names(entry.movie):
+            genre_scores[genre_name] = genre_scores.get(genre_name, 0.0) + DIARY_ENTRY_WEIGHT
 
     if not genre_scores:
         return None
@@ -373,7 +439,11 @@ def get_home_recommendations_for_user(
 
     context = infer_user_taste_context(db, user_id, min_rating=min_rating)
     if context is None:
-        context = infer_home_context(recommendations)
+        context = {
+            "hero_message": DEFAULT_HOME_MESSAGE,
+            "dominant_genre": None,
+            "mood": "neutral",
+        }
 
     return {
         **context,

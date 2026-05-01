@@ -1,5 +1,6 @@
 package com.app.movieit.data.api
 
+import com.app.movieit.data.model.ReviewCountOut
 import com.app.movieit.data.model.ReviewCreate
 import com.app.movieit.data.model.ReviewModerateUpdate
 import com.app.movieit.data.model.ReviewOut
@@ -26,6 +27,9 @@ interface ReviewApi {
         @Query("skip") skip: Int = 0,
         @Query("limit") limit: Int = 100
     ): Response<List<ReviewOut>>
+
+    @retrofit2.http.GET("reviews/me/count")
+    suspend fun getMyReviewsCount(): Response<ReviewCountOut>
 
     @retrofit2.http.PUT("reviews/{review_id}")
     suspend fun updateReview(

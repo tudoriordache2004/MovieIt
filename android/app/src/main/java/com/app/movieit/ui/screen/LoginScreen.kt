@@ -163,7 +163,6 @@ fun LoginScreen(
                         SpanStyle(
                             color = TextPrimary,
                             fontWeight = FontWeight.ExtraBold,
-                            fontStyle = FontStyle.Italic,
                             letterSpacing = (-1).sp
                         )
                     ) { append("MOVIE") }
@@ -171,7 +170,6 @@ fun LoginScreen(
                         SpanStyle(
                             color = GoldAccent,
                             fontWeight = FontWeight.ExtraBold,
-                            fontStyle = FontStyle.Italic,
                             letterSpacing = (-1).sp
                         )
                     ) { append("IT") }
@@ -179,16 +177,6 @@ fun LoginScreen(
                 fontSize = 48.sp,
                 textAlign = TextAlign.Center
             )
-            Text(
-                text = "CINEPHILE SOCIAL NETWORK",
-                color = TextSecondary,
-                fontSize = 11.sp,
-                letterSpacing = 2.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-
-            Spacer(Modifier.height(36.dp))
 
             // ── Glass card ──────────────────────────────────────────────────────
             Box(

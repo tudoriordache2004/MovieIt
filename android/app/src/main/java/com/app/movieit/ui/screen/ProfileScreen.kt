@@ -66,28 +66,27 @@ private val CardBorder = Color(0x1AFFFFFF)
 
 @Composable
 fun ProfileScreen(
-    onBack: () -> Unit,
     onOpenDiary: () -> Unit,
     onOpenWatchlist: () -> Unit,
     onLogout: () -> Unit,
-    shouldRefresh: Boolean,
-    onRefreshHandled: () -> Unit,
+    shouldRefresh: Boolean = false,
+    onRefreshHandled: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.uploadProfilePicture(it, context) }
-    }
 
     LaunchedEffect(shouldRefresh) {
         if (shouldRefresh) {
             viewModel.load()
             onRefreshHandled()
         }
+    }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.uploadProfilePicture(it, context) }
     }
 
     Box(

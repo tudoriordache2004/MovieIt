@@ -58,7 +58,7 @@ class ProfileViewModel @Inject constructor(
                 val meResp = authApi.getMe()
                 val diaryCountResp = diaryApi.getDiaryCount()
                 val watchResp = watchlistApi.getMyWatchlist()
-                val reviewsResp = reviewApi.getMyReviews(skip = 0, limit = 1000)
+                val reviewsCountResp = reviewApi.getMyReviewsCount()
 
                 _uiState.update {
                     it.copy(
@@ -66,7 +66,7 @@ class ProfileViewModel @Inject constructor(
                         profilePictureUrl = if (meResp.isSuccessful) meResp.body()?.profilePictureUrl else it.profilePictureUrl,
                         diaryCount = if (diaryCountResp.isSuccessful) (diaryCountResp.body()?.count ?: 0) else it.diaryCount,
                         watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
-                        reviewsCount = if (reviewsResp.isSuccessful) (reviewsResp.body()?.size ?: 0) else it.reviewsCount
+                        reviewsCount = if (reviewsCountResp.isSuccessful) (reviewsCountResp.body()?.count ?: 0) else it.reviewsCount
                     )
                 }
             } catch (e: Exception) {

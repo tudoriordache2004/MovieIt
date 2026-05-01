@@ -1,6 +1,7 @@
 package com.app.movieit.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,28 +9,33 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,13 +66,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -80,23 +88,33 @@ import com.app.movieit.ui.viewmodel.MoviesViewModel
 import java.util.Locale
 import kotlin.math.roundToInt
 
+private val DECADES = listOf(
+    1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020
+)
+
+private fun decadeLabel(decade: Int): String = when (decade) {
+    1930 -> "30s"; 1940 -> "40s"; 1950 -> "50s"; 1960 -> "60s"
+    1970 -> "70s"; 1980 -> "80s"; 1990 -> "90s"
+    2000 -> "00s"; 2010 -> "10s"; 2020 -> "20s"
+    else -> "${decade % 100}s"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoviesScreen(
     onLoggedOut: () -> Unit,
     onMovieClick: (Int) -> Unit,
-    onOpenWatchlist: () -> Unit,
-    onOpenDiary: () -> Unit,
     viewModel: MoviesViewModel = hiltViewModel(),
     shouldRefresh: Boolean,
-    onRefreshHandled: () -> Unit,
-    onOpenProfile: () -> Unit
+    onRefreshHandled: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    var yearDraft by remember(showFilters) { mutableStateOf(state.year?.toString().orEmpty()) }
-    var minRatingDraft by remember(showFilters) { mutableStateOf(state.minRating ?: 0f) }
+    // Draft state resets to current ViewModel state each time the sheet opens
+    var draftDecades by remember(showFilters) { mutableStateOf(state.selectedDecades) }
+    var draftRating by remember(showFilters) { mutableStateOf(state.minRating ?: 0f) }
 
     LaunchedEffect(state.loggedOut) {
         if (state.loggedOut) {
@@ -112,7 +130,7 @@ fun MoviesScreen(
         }
     }
 
-    // ─── Filter Bottom Sheet ──────────────────────────────────────────────────
+    // ── Filter bottom sheet ────────────────────────────────────────────────────
     if (showFilters) {
         ModalBottomSheet(
             onDismissRequest = { showFilters = false },
@@ -132,39 +150,32 @@ fun MoviesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text(
-                    "Filter",
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Filters", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
                 Divider(color = BorderColor, thickness = 0.5.dp)
 
-                // Year field
-                OutlinedTextField(
-                    value = yearDraft,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() }.take(4)
-                        yearDraft = filtered
-                    },
-                    label = { Text("Year of release (ex. 2025)", color = TextSecondary, fontSize = 13.sp) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(color = TextPrimary),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentPurple,
-                        unfocusedBorderColor = BorderColor,
-                        cursorColor = GlowPurple,
-                        focusedContainerColor = Color(0x1AFFFFFF),
-                        unfocusedContainerColor = Color(0x0DFFFFFF)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                // Decades
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Decade", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)
+                    ) {
+                        lazyItems(DECADES) { decade ->
+                            SelectableChip(
+                                label = decadeLabel(decade),
+                                selected = decade in draftDecades,
+                                onClick = {
+                                    draftDecades = if (decade in draftDecades)
+                                        draftDecades - decade else draftDecades + decade
+                                }
+                            )
+                        }
+                    }
+                }
 
                 // Rating slider
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -173,11 +184,7 @@ fun MoviesScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "Minimum rating",
-                            color = TextSecondary,
-                            fontSize = 13.sp
-                        )
+                        Text("Minimum Rating", color = TextSecondary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -185,19 +192,16 @@ fun MoviesScreen(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "⭐ ${String.format(Locale.US, "%.1f", minRatingDraft)}",
+                                text = if (draftRating <= 0f) "Any" else "⭐ %.1f".format(draftRating),
                                 color = GoldAccent,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-
                     Slider(
-                        value = minRatingDraft,
-                        onValueChange = { v ->
-                            minRatingDraft = (v * 2f).roundToInt() / 2f
-                        },
+                        value = draftRating,
+                        onValueChange = { draftRating = (it * 2f).roundToInt() / 2f },
                         valueRange = 0f..10f,
                         steps = 19,
                         colors = SliderDefaults.colors(
@@ -206,19 +210,28 @@ fun MoviesScreen(
                             inactiveTrackColor = BorderColor
                         )
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("0.0", color = TextSecondary.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("5.0", color = TextSecondary.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("10.0", color = TextSecondary.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Spacer(Modifier.height(4.dp))
 
+                // Reset / Apply
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Clear
                     TextButton(
                         onClick = {
-                            viewModel.setYear(null)
-                            viewModel.setMinRating(null)
+                            draftDecades = emptySet()
+                            draftRating = 0f
+                            viewModel.setDecadeAndRatingFilters(emptySet(), null)
                             showFilters = false
                         },
                         modifier = Modifier
@@ -230,14 +243,12 @@ fun MoviesScreen(
                     ) {
                         Text("Reset", fontWeight = FontWeight.SemiBold)
                     }
-
-                    // Apply
                     Button(
                         onClick = {
-                            val year = yearDraft.toIntOrNull()
-                            val min = if (minRatingDraft <= 0f) null else minRatingDraft
-                            viewModel.setYear(year)
-                            viewModel.setMinRating(min)
+                            viewModel.setDecadeAndRatingFilters(
+                                draftDecades,
+                                if (draftRating <= 0f) null else draftRating
+                            )
                             showFilters = false
                         },
                         modifier = Modifier
@@ -253,50 +264,23 @@ fun MoviesScreen(
         }
     }
 
-    // ─── Main Scaffold ────────────────────────────────────────────────────────
     Scaffold(
         containerColor = DeepBlack,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         buildAnnotatedString {
-                            withStyle(SpanStyle(color = TextPrimary, fontWeight = FontWeight.Black, letterSpacing = 1.sp)) {
-                                append("MOVIE")
-                            }
-                            withStyle(SpanStyle(color = GoldAccent, fontWeight = FontWeight.Black, letterSpacing = 1.sp)) {
-                                append("IT")
-                            }
+                            withStyle(SpanStyle(color = TextPrimary, fontWeight = FontWeight.Black, letterSpacing = 1.sp)) { append("MOVIE") }
+                            withStyle(SpanStyle(color = GoldAccent, fontWeight = FontWeight.Black, letterSpacing = 1.sp)) { append("IT") }
                         },
                         fontSize = 22.sp
                     )
                 },
-                actions = {
-                    IconButton(onClick = { showFilters = true }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filters", tint = if (state.year != null || state.minRating != null) GoldAccent else TextSecondary)
-                    }
-                    IconButton(onClick = onOpenDiary) {
-                        Icon(Icons.Default.MenuBook, contentDescription = "Diary", tint = TextSecondary)
-                    }
-                    IconButton(onClick = onOpenWatchlist) {
-                        Icon(Icons.Default.BookmarkBorder, contentDescription = "Watchlist", tint = TextSecondary)
-                    }
-                    IconButton(onClick = onOpenProfile) {
-                        Icon(Icons.Default.Person, contentDescription = "Profile", tint = TextSecondary)
-                    }
-                    TextButton(
-                        onClick = { viewModel.logout() },
-                        colors = ButtonDefaults.textButtonColors(contentColor = ErrorRed.copy(alpha = 0.8f))
-                    ) {
-                        Text("Exit", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkNavy,
-                    titleContentColor = TextPrimary
-                ),
+                actions = {},
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF110A22), titleContentColor = TextPrimary),
                 modifier = Modifier.drawBehind {
-                    // bottom glow line
                     drawLine(
                         brush = Brush.horizontalGradient(
                             colors = listOf(Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent)
@@ -309,174 +293,276 @@ fun MoviesScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(DarkNavy, DeepBlack, DeepBlack)
-                    )
-                )
+                .background(Brush.verticalGradient(colors = listOf(Color(0xFF110A22), DeepBlack, DeepBlack)))
                 .padding(innerPadding)
         ) {
-            // ─── Search Bar ───────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                OutlinedTextField(
-                    value = state.search,
-                    onValueChange = { viewModel.setSearch(it) },
-                    placeholder = { Text("Search...", color = TextSecondary, fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(color = TextPrimary, fontSize = 14.sp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AccentPurple,
-                        unfocusedBorderColor = BorderColor,
-                        cursorColor = GlowPurple,
-                        focusedContainerColor = Color(0x1AAB6DFF),
-                        unfocusedContainerColor = Color(0x0DFFFFFF)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                )
-            }
+            Column(modifier = Modifier.fillMaxSize()) {
 
-            // Active filter chips
-            if (state.year != null || (state.minRating != null && state.minRating!! > 0f)) {
-                Row(
+                // ── Search bar ──────────────────────────────────────────────────
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    state.year?.let {
-                        FilterChip(label = "📅 $it")
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = { viewModel.setSearch(it) },
+                        placeholder = { Text("Search movies...", color = TextSecondary, fontSize = 14.sp) },
+                        leadingIcon = {
+                            IconButton(onClick = {
+                                viewModel.submitSearchToGrid(state.searchQuery)
+                                keyboardController?.hide()
+                            }) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = "Submit search",
+                                    tint = if (state.gridSearch != null) AccentPurple else TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        trailingIcon = {
+                            if (state.searchQuery.isNotBlank()) {
+                                IconButton(onClick = { viewModel.clearSearch() }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            viewModel.submitSearchToGrid(state.searchQuery)
+                            keyboardController?.hide()
+                        }),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(color = TextPrimary, fontSize = 14.sp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = if (state.gridSearch != null) AccentPurple else AccentPurple,
+                            unfocusedBorderColor = if (state.gridSearch != null) AccentPurple.copy(alpha = 0.6f) else BorderColor,
+                            cursorColor = GlowPurple,
+                            focusedContainerColor = Color(0x1AAB6DFF),
+                            unfocusedContainerColor = Color(0x0DFFFFFF)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                }
+
+                // ── Filter button + genre chips (single scrollable row) ──────────
+                val filterBadge = state.selectedDecades.size + (if (state.minRating != null && state.minRating!! > 0f) 1 else 0)
+                LazyRow(
+                    contentPadding = PaddingValues(start = 12.dp, end = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        // Purple Filters button
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(AccentPurple)
+                                .clickable { showFilters = true }
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.FilterList,
+                                    contentDescription = "Filters",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = if (filterBadge > 0) "Filters · $filterBadge" else "Filters",
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
-                    state.minRating?.let {
-                        if (it > 0f) FilterChip(label = "⭐ ≥ ${String.format(Locale.US, "%.1f", it)}")
+                    lazyItems(state.genres) { genre ->
+                        SelectableChip(
+                            label = genre.name,
+                            selected = genre.id in state.selectedGenreIds,
+                            onClick = { viewModel.toggleGenre(genre.id) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // ── Active filter summary ───────────────────────────────────────
+                val hasFilters = state.selectedGenreIds.isNotEmpty() ||
+                        state.selectedDecades.isNotEmpty() ||
+                        (state.minRating != null && state.minRating!! > 0f)
+                if (hasFilters) {
+                    ActiveFilterSummary(
+                        genreCount = state.selectedGenreIds.size,
+                        selectedDecades = state.selectedDecades,
+                        minRating = state.minRating,
+                        onClearAll = { viewModel.clearAllFilters() }
+                    )
+                }
+
+                // ── Content ─────────────────────────────────────────────────────
+                when {
+                    state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp)
+                            Text("Loading...", color = TextSecondary, fontSize = 13.sp)
+                        }
+                    }
+
+                    state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(Icons.Default.Movie, contentDescription = null, tint = ErrorRed.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
+                            Text("Error: ${state.error}", color = ErrorRed, fontSize = 14.sp, textAlign = TextAlign.Center)
+                            Button(
+                                onClick = { viewModel.loadMovies(state.currentPage) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Try again.", color = TextPrimary)
+                            }
+                        }
+                    }
+
+                    state.movies.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Movie, contentDescription = null, tint = TextSecondary.copy(alpha = 0.4f), modifier = Modifier.size(56.dp))
+                            Text("No movies found.", color = TextSecondary, fontSize = 15.sp)
+                        }
+                    }
+
+                    else -> {
+                        // Results header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(
+                                "Results",
+                                color = TextPrimary,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.5).sp
+                            )
+                            Text(
+                                "${state.movies.size} MOVIES",
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(items = state.movies, key = { it.id }) { movie ->
+                                MovieGridItem(movie = movie, onClick = { onMovieClick(movie.id) })
+                            }
+                        }
+
+                        // ── Paginator ───────────────────────────────────────────
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .drawBehind {
+                                    drawLine(
+                                        brush = Brush.horizontalGradient(colors = listOf(Color.Transparent, AccentPurple, Color.Transparent)),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(size.width, 0f),
+                                        strokeWidth = 1f
+                                    )
+                                }
+                                .background(Color(0xFF110A22).copy(alpha = 0.8f))
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = { viewModel.prevPage() },
+                                enabled = state.currentPage > 0 && !state.loading,
+                                colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple)
+                            ) { Text("← Previous", fontWeight = FontWeight.SemiBold) }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x1AFFFFFF))
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text("Page ${state.currentPage + 1}", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
+
+                            TextButton(
+                                onClick = { viewModel.nextPage() },
+                                enabled = state.hasMore && !state.loading,
+                                colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple)
+                            ) { Text("Next →", fontWeight = FontWeight.SemiBold) }
+                        }
                     }
                 }
             }
 
-            // ─── Content ──────────────────────────────────────────────────────
-            when {
-                state.loading -> Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            // ── Search dropdown (floats over content) ──────────────────────────
+            if (state.dropdownVisible) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 72.dp)
+                        .padding(horizontal = 16.dp)
+                        .heightIn(max = 300.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0F2E)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp)
-                        Text("Loading...", color = TextSecondary, fontSize = 13.sp)
-                    }
-                }
-
-                state.error != null -> Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        Icon(Icons.Default.Movie, contentDescription = null, tint = ErrorRed.copy(alpha = 0.6f), modifier = Modifier.size(48.dp))
-                        Text(
-                            "Error: ${state.error}",
-                            color = ErrorRed,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Button(
-                            onClick = { viewModel.loadMovies(state.currentPage) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+                    when {
+                        state.searchLoading -> Box(
+                            Modifier.fillMaxWidth().padding(20.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Try again.", color = TextPrimary)
+                            CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                         }
-                    }
-                }
 
-                state.movies.isEmpty() -> Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Default.Movie, contentDescription = null, tint = TextSecondary.copy(alpha = 0.4f), modifier = Modifier.size(56.dp))
-                        Text("No movies found.", color = TextSecondary, fontSize = 15.sp)
-                    }
-                }
-
-                else -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(items = state.movies, key = { it.id }) { movie ->
-                            MovieGridItem(
-                                movie = movie,
-                                onClick = { onMovieClick(movie.id) }
-                            )
+                        state.searchResults.isEmpty() -> Box(
+                            Modifier.fillMaxWidth().padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No results for \"${state.searchQuery}\"", color = TextSecondary, fontSize = 13.sp)
                         }
-                    }
 
-                    // ─── Paginator ────────────────────────────────────────────
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .drawBehind {
-                                drawLine(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(Color.Transparent, AccentPurple, Color.Transparent)
-                                    ),
-                                    start = Offset(0f, 0f),
-                                    end = Offset(size.width, 0f),
-                                    strokeWidth = 1f
-                                )
+                        else -> LazyColumn {
+                            itemsIndexed(state.searchResults) { index, movie ->
+                                SearchDropdownItem(movie = movie, onClick = {
+                                    viewModel.clearSearch()
+                                    onMovieClick(movie.id)
+                                })
+                                if (index < state.searchResults.lastIndex) {
+                                    Divider(color = BorderColor, thickness = 0.5.dp)
+                                }
                             }
-                            .background(DarkNavy.copy(alpha = 0.8f))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = { viewModel.prevPage() },
-                            enabled = state.currentPage > 0 && !state.loading,
-                            colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple)
-                        ) { Text("← Previous", fontWeight = FontWeight.SemiBold) }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x1AFFFFFF))
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                "Page ${state.currentPage + 1}",
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
                         }
-
-                        TextButton(
-                            onClick = { viewModel.nextPage() },
-                            enabled = state.hasMore && !state.loading,
-                            colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple)
-                        ) { Text("Next →", fontWeight = FontWeight.SemiBold) }
                     }
                 }
             }
@@ -484,24 +570,110 @@ fun MoviesScreen(
     }
 }
 
-// ─── Filter Chip ──────────────────────────────────────────────────────────────
+// ── Selectable chip ────────────────────────────────────────────────────────────
 @Composable
-private fun FilterChip(label: String) {
+private fun SelectableChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(AccentPurple.copy(alpha = 0.3f), MidPurple.copy(alpha = 0.3f))
-                )
-            )
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+            .background(if (selected) AccentPurple else Color.Transparent)
+            .border(1.dp, if (selected) AccentPurple else BorderColor, RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
-        Text(label, color = SoftLavender, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text(
+            text = label,
+            color = if (selected) TextPrimary else TextSecondary,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }
 
-// ─── Movie Grid Item ──────────────────────────────────────────────────────────
+// ── Active filter summary ──────────────────────────────────────────────────────
+@Composable
+private fun ActiveFilterSummary(
+    genreCount: Int,
+    selectedDecades: Set<Int>,
+    minRating: Float?,
+    onClearAll: () -> Unit
+) {
+    val parts = buildList {
+        if (genreCount > 0) add("$genreCount genre${if (genreCount > 1) "s" else ""}")
+        if (selectedDecades.isNotEmpty()) add(selectedDecades.sorted().joinToString(", ") { decadeLabel(it) })
+        if (minRating != null && minRating > 0f) add("★ ≥ %.1f".format(minRating))
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = parts.joinToString(" · "),
+            color = TextSecondary,
+            fontSize = 11.sp,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        TextButton(
+            onClick = onClearAll,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+        ) {
+            Text("Clear all", color = AccentPurple, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+// ── Search dropdown item ───────────────────────────────────────────────────────
+@Composable
+private fun SearchDropdownItem(movie: Movie, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 54.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF2A2A2A))
+        ) {
+            if (!movie.posterUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = movie.posterUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = movie.title,
+                color = TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val year = movie.releaseDate?.take(4) ?: ""
+            val rating = if (movie.avgRating > 0f) "⭐ %.1f".format(movie.avgRating) else ""
+            val meta = listOf(year, rating).filter { it.isNotBlank() }.joinToString(" · ")
+            if (meta.isNotBlank()) {
+                Text(text = meta, color = TextSecondary, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+// ── Movie grid item ────────────────────────────────────────────────────────────
 @Composable
 private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
     val rating = String.format(Locale.US, "%.1f", movie.avgRating)
@@ -511,11 +683,7 @@ private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1C0F35), Color(0xFF110A22))
-                )
-            )
+            .background(Brush.verticalGradient(colors = listOf(Color(0xFF1C0F35), Color(0xFF110A22))))
             .clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -535,12 +703,7 @@ private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Icon(
-                    Icons.Default.Movie,
-                    contentDescription = null,
-                    tint = TextSecondary.copy(alpha = 0.4f),
-                    modifier = Modifier.size(32.dp)
-                )
+                Icon(Icons.Default.Movie, contentDescription = null, tint = TextSecondary.copy(alpha = 0.4f), modifier = Modifier.size(32.dp))
             }
         }
 
@@ -561,30 +724,17 @@ private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-
             if (year.isNotBlank() || movie.avgRating > 0) {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (year.isNotBlank()) {
-                        Text(year, color = TextSecondary, fontSize = 10.sp)
-                    }
-                    if (year.isNotBlank() && movie.avgRating > 0) {
-                        Text(" · ", color = TextSecondary, fontSize = 10.sp)
-                    }
-                    if (movie.avgRating > 0) {
-                        Text(
-                            "⭐$rating",
-                            color = GoldAccent,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    if (year.isNotBlank()) Text(year, color = TextSecondary, fontSize = 10.sp)
+                    if (year.isNotBlank() && movie.avgRating > 0) Text(" · ", color = TextSecondary, fontSize = 10.sp)
+                    if (movie.avgRating > 0) Text("⭐$rating", color = GoldAccent, fontSize = 10.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
     }
 }
-

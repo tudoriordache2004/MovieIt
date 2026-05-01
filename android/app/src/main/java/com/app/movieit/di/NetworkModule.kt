@@ -3,6 +3,7 @@ package com.app.movieit.di
 import android.content.Context
 import com.app.movieit.data.api.AuthApi
 import com.app.movieit.data.api.MovieApi
+import com.app.movieit.data.api.RecommendationApi
 import com.app.movieit.data.api.ReviewApi
 import com.app.movieit.util.Constants
 import com.app.movieit.data.auth.TokenManager
@@ -103,4 +104,9 @@ object NetworkModule {
     @Singleton
     fun provideDiaryApi(retrofit: Retrofit): DiaryApi =
         retrofit.create(DiaryApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRecommendationApi(retrofit: Retrofit): RecommendationApi =
+        retrofit.create(RecommendationApi::class.java)
 }

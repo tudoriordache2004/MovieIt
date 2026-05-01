@@ -29,3 +29,5 @@ data class ReviewModerateUpdate(
     val comment: String? = null,
     @SerializedName("is_spoiler") val isSpoiler: Boolean? = null
 )
+
+data class ReviewCountOut(val count: Int)
