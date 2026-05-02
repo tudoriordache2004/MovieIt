@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
@@ -48,6 +51,7 @@ import coil.compose.AsyncImage
 import com.app.movieit.data.model.RecommendationOut
 import com.app.movieit.ui.theme.AccentPurple
 import com.app.movieit.ui.theme.DeepBlack
+import com.app.movieit.ui.theme.GlowPurple
 import com.app.movieit.ui.theme.GoldAccent
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
@@ -56,6 +60,7 @@ import com.app.movieit.ui.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     onMovieClick: (Int) -> Unit,
+    onPickerClick: () -> Unit = {},
     shouldRefresh: Boolean = false,
     onRefreshHandled: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -90,6 +95,11 @@ fun HomeScreen(
                 // Logo bar
                 item(span = { GridItemSpan(3) }) {
                     HomeLogoBar()
+                }
+
+                // Pick for Tonight banner
+                item(span = { GridItemSpan(3) }) {
+                    PickForTonightBanner(onClick = onPickerClick)
                 }
 
                 // Mood message
@@ -201,6 +211,66 @@ private fun HomeLogoBar() {
             },
             fontSize = 48.sp,
             textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun PickForTonightBanner(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1C0A35), Color(0xFF110A22))
+                )
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AccentPurple.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = GlowPurple,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Pick for Tonight",
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.3).sp
+                )
+                Text(
+                    text = "Tell us your mood, we'll find the match.",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = GlowPurple,
+            modifier = Modifier.size(20.dp)
         )
     }
 }

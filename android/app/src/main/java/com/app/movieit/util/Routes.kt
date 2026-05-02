@@ -12,5 +12,6 @@ object Routes {
     const val DIARY = "diary"
 
     const val PROFILE = "profile"
+    const val MOVIE_PICKER = "movie_picker"
     fun movieDetails(movieId: Int) = "movie/$movieId"
 }

@@ -42,6 +42,7 @@ import com.app.movieit.ui.screen.AuthGateScreen
 import com.app.movieit.ui.screen.HomeScreen
 import com.app.movieit.ui.screen.LoginScreen
 import com.app.movieit.ui.screen.MovieDetailScreen
+import com.app.movieit.ui.screen.MoviePickerScreen
 import com.app.movieit.ui.screen.MoviesScreen
 import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.ProfileScreen
@@ -127,7 +128,17 @@ fun AppNav() {
                     onRefreshHandled = { backStackEntry.savedStateHandle["refresh_home"] = false },
                     onMovieClick = { movieId ->
                         navController.navigate(Routes.movieDetails(movieId))
+                    },
+                    onPickerClick = {
+                        navController.navigate(Routes.MOVIE_PICKER)
                     }
+                )
+            }
+
+            composable(Routes.MOVIE_PICKER) {
+                MoviePickerScreen(
+                    onBack = { navController.popBackStack() },
+                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) }
                 )
             }
 
