@@ -42,7 +42,16 @@ local.properties
 *.jks
 
 features.txt
+FRONTEND_CLAUDE_PROMPT.md
 
 CLAUDE.md
 
 uploads
+
+# Local CLIP/Lens testing artifacts
+backend/test_images/
+backend/tmp/
+backend/*.jpg
+backend/*.jpeg
+backend/*.png
+backend/*.webp

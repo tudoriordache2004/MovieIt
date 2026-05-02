@@ -13,5 +13,6 @@ object Routes {
 
     const val PROFILE = "profile"
     const val MOVIE_PICKER = "movie_picker"
+    const val MOVIEIT_LENS = "movieit_lens"
     fun movieDetails(movieId: Int) = "movie/$movieId"
 }

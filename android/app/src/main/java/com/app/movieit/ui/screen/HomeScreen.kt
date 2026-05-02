@@ -22,9 +22,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +63,7 @@ import com.app.movieit.ui.viewmodel.HomeViewModel
 fun HomeScreen(
     onMovieClick: (Int) -> Unit,
     onPickerClick: () -> Unit = {},
+    onLensClick: () -> Unit = {},
     shouldRefresh: Boolean = false,
     onRefreshHandled: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -87,7 +90,7 @@ fun HomeScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 88.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxSize()
@@ -173,6 +176,21 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        // Lens FAB — bottom-right corner
+        FloatingActionButton(
+            onClick = onLensClick,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 16.dp),
+            containerColor = AccentPurple,
+            contentColor = TextPrimary
+        ) {
+            Icon(
+                imageVector = Icons.Default.PhotoCamera,
+                contentDescription = "MovieIt Lens"
+            )
         }
     }
 }
