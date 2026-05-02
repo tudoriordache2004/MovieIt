@@ -16,13 +16,15 @@ class ReviewUpdate(BaseModel):
 
 class ReviewOut(BaseModel):
     id: int
-    user_id: int  
+    user_id: int
     movie_id: int
     rating: Optional[int] = None
     comment: Optional[str]
     is_spoiler: bool
     created_at: datetime
-    
+    username: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
     class Config:
         from_attributes = True
 

@@ -20,6 +20,14 @@ router = APIRouter(prefix="/reviews", tags=["reviews"])
 VULGARITY_REJECTION_MESSAGE = "Your review contains inappropriate language and cannot be posted."
 
 
+def _enrich(review: Review) -> Review:
+    """Attach username and profile_picture_url from the user relationship."""
+    if review.user:
+        review.username = review.user.username
+        review.profile_picture_url = review.user.profile_picture_url
+    return review
+
+
 def update_movie_avg_rating(db: Session, movie_id: int):
     """Recalculează avg_rating pentru un film"""
     avg_rating = (
@@ -85,7 +93,7 @@ def create_review(
     db_review.suggested_is_spoiler = suggested_is_spoiler
     db_review.suggested_is_toxic = False
 
-    return db_review
+    return _enrich(db_review)
 
 
 @router.get("/", response_model=List[ReviewOut])
@@ -111,7 +119,7 @@ def get_reviews(
         .limit(limit)
         .all()
     )
-    return reviews
+    return [_enrich(r) for r in reviews]
 
 
 @router.get("/movie/{movie_id}", response_model=List[ReviewOut])
@@ -137,7 +145,7 @@ def get_reviews_by_movie(
         .limit(limit)
         .all()
     )
-    return reviews
+    return [_enrich(r) for r in reviews]
 
 
 @router.get("/user/{user_id}", response_model=List[ReviewOut])
@@ -163,7 +171,7 @@ def get_reviews_by_user(
         .limit(limit)
         .all()
     )
-    return reviews
+    return [_enrich(r) for r in reviews]
 
 
 @router.get("/me/count")
@@ -196,7 +204,7 @@ def get_my_reviews(
         .limit(limit)
         .all()
     )
-    return reviews
+    return [_enrich(r) for r in reviews]
 
 
 @router.get("/{review_id}", response_model=ReviewOut)
@@ -208,7 +216,7 @@ def get_review_by_id(review_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Review with id {review_id} not found",
         )
-    return review
+    return _enrich(review)
 
 
 @router.put("/{review_id}", response_model=ReviewOut)
@@ -261,7 +269,7 @@ def update_review(
 
     update_movie_avg_rating(db, review.movie_id)
 
-    return review
+    return _enrich(review)
 
 
 @router.put("/{review_id}/moderate", response_model=ReviewOut)
@@ -300,7 +308,7 @@ def moderate_review_comment(
 
     db.commit()
     db.refresh(review)
-    return review
+    return _enrich(review)
 
 
 @router.delete("/{review_id}", status_code=status.HTTP_204_NO_CONTENT)

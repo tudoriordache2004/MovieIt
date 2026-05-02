@@ -3,11 +3,14 @@ from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, Header, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.user import User
+from app.models.diary_entry import DiaryEntry
+from app.models.genre import Genre, MovieGenre
 from app.schemas.user import UserCreate, UserOut
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from passlib.context import CryptContext
@@ -152,6 +155,27 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 def read_users_me(current_user: User = Depends(get_current_user)):
     """Obține informații despre user-ul curent - manual"""
     return current_user
+
+@router.get("/me/stats")
+def get_profile_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    movie_ids = (
+        db.query(DiaryEntry.movie_id)
+        .filter(DiaryEntry.user_id == current_user.id)
+        .scalar_subquery()
+    )
+    result = (
+        db.query(Genre.name, func.count(Genre.id).label("cnt"))
+        .join(MovieGenre, MovieGenre.genre_id == Genre.id)
+        .filter(MovieGenre.movie_id.in_(movie_ids))
+        .group_by(Genre.id, Genre.name)
+        .order_by(func.count(Genre.id).desc())
+        .first()
+    )
+    return {"favorite_genre": result[0] if result else None}
+
 
 @router.put("/me/profile-picture", response_model=UserOut)
 async def upload_profile_picture(

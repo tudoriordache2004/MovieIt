@@ -141,7 +141,12 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
             sentiment, sentiment_score = classify_sentiment(review.comment)
 
             if sentiment == "negative":
-                continue
+                sentiment_weight = 0.7
+            elif sentiment == "positive":
+                sentiment_weight = 1.0 + sentiment_score
+                strongest_sentiment = "positive"
+            else:
+                sentiment_weight = 1.0
 
             movie_embedding = (
                 db.query(MovieEmbedding)
@@ -153,16 +158,11 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
                 continue
 
             vector = movie_embedding.embedding
-
-            sentiment_weight = 1.0 + sentiment_score if sentiment == "positive" else 1.0
             rating_weight = review.rating / 10.0
             weight = rating_weight * sentiment_weight
 
             weighted_vectors.append(np.array(vector, dtype=np.float32) * weight)
             weights.append(weight)
-
-            if sentiment == "positive":
-                strongest_sentiment = "positive"
         else:
             movie_embedding = (
                 db.query(MovieEmbedding)

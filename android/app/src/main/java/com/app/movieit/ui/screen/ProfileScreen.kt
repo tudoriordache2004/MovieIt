@@ -24,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -47,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -213,49 +213,50 @@ fun ProfileScreen(
                     fontSize = 14.sp
                 )
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Stats row
+                // Quick-nav buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    StatCard(label = "Diary", value = state.diaryCount, modifier = Modifier.weight(1f))
-                    StatCard(label = "Reviews", value = state.reviewsCount, modifier = Modifier.weight(1f))
-                    StatCard(label = "Watchlist", value = state.watchlistCount, modifier = Modifier.weight(1f))
+                    QuickNavCard(Icons.Default.Book, "My Diary", onOpenDiary, Modifier.weight(1f))
+                    QuickNavCard(Icons.Default.Bookmark, "My Watchlist", onOpenWatchlist, Modifier.weight(1f))
                 }
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Section label
+                // MY STATS section
+                Text(
+                    text = "MY STATS",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "ACCOUNT ACTIVITY",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
+                    ProfileStatCard("Diary Entries", state.diaryCount.toString(), Modifier.weight(1f))
+                    ProfileStatCard("Reviews", state.reviewsCount.toString(), Modifier.weight(1f))
                 }
 
                 Spacer(Modifier.height(10.dp))
 
-                MenuCard(
-                    icon = Icons.Default.Book,
-                    label = "My Diary",
-                    onClick = onOpenDiary
-                )
-                Spacer(Modifier.height(8.dp))
-                MenuCard(
-                    icon = Icons.Default.Bookmark,
-                    label = "My Watchlist",
-                    onClick = onOpenWatchlist
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ProfileStatCard("Favorite Genre", state.favoriteGenre ?: "—", Modifier.weight(1f), isText = true)
+                    ProfileStatCard("Watchlist", state.watchlistCount.toString(), Modifier.weight(1f))
+                }
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(24.dp))
 
                 // Logout
                 Surface(
@@ -294,87 +295,83 @@ fun ProfileScreen(
                         )
                     }
                 }
+
             }
         }
     }
 }
 
 @Composable
-private fun StatCard(label: String, value: Int, modifier: Modifier = Modifier) {
+private fun QuickNavCard(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(CardBg)
             .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-            .padding(vertical = 16.dp),
+            .clickable { onClick() }
+            .padding(vertical = 18.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = value.toString(),
-                color = GlowPurple,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AccentPurple.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = GlowPurple, modifier = Modifier.size(22.dp))
+            }
             Text(
                 text = label,
-                color = TextSecondary,
-                fontSize = 11.sp,
+                color = TextPrimary,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 0.5.sp
             )
         }
     }
 }
 
 @Composable
-private fun MenuCard(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
+private fun ProfileStatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    isText: Boolean = false
+) {
+    Box(
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() },
-        color = CardBg,
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 0.dp
+            .background(CardBg)
+            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 16.dp)
     ) {
-        Box(
-            modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(AccentPurple.copy(alpha = 0.20f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = GlowPurple,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    text = label,
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = label.uppercase(),
+                color = TextSecondary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Text(
+                text = value,
+                color = if (isText) GoldAccent else GlowPurple,
+                fontSize = if (isText) 16.sp else 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
+

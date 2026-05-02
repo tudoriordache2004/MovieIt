@@ -27,7 +27,8 @@ data class ProfileUiState(
     val uploading: Boolean = false,
     val diaryCount: Int = 0,
     val watchlistCount: Int = 0,
-    val reviewsCount: Int = 0
+    val reviewsCount: Int = 0,
+    val favoriteGenre: String? = null
 )
 
 @HiltViewModel
@@ -59,6 +60,7 @@ class ProfileViewModel @Inject constructor(
                 val diaryCountResp = diaryApi.getDiaryCount()
                 val watchResp = watchlistApi.getMyWatchlist()
                 val reviewsCountResp = reviewApi.getMyReviewsCount()
+                val statsResp = authApi.getProfileStats()
 
                 _uiState.update {
                     it.copy(
@@ -66,7 +68,8 @@ class ProfileViewModel @Inject constructor(
                         profilePictureUrl = if (meResp.isSuccessful) meResp.body()?.profilePictureUrl else it.profilePictureUrl,
                         diaryCount = if (diaryCountResp.isSuccessful) (diaryCountResp.body()?.count ?: 0) else it.diaryCount,
                         watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
-                        reviewsCount = if (reviewsCountResp.isSuccessful) (reviewsCountResp.body()?.count ?: 0) else it.reviewsCount
+                        reviewsCount = if (reviewsCountResp.isSuccessful) (reviewsCountResp.body()?.count ?: 0) else it.reviewsCount,
+                        favoriteGenre = if (statsResp.isSuccessful) statsResp.body()?.favoriteGenre else it.favoriteGenre
                     )
                 }
             } catch (e: Exception) {

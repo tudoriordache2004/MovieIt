@@ -616,20 +616,32 @@ private fun ReviewCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
+                    .clip(CircleShape)
                     .background(AccentPurple, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "#${review.userId}",
-                    color = TextPrimary,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                val pictureUrl = review.profilePictureUrl
+                    ?.let { com.app.movieit.util.Constants.BASE_URL.trimEnd('/') + it }
+                if (pictureUrl != null) {
+                    AsyncImage(
+                        model = pictureUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = review.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "#",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "User #${review.userId}",
+                    review.username ?: "User #${review.userId}",
                     color = TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp

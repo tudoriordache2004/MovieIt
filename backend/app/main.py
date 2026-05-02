@@ -3,15 +3,18 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware #Android app
 from fastapi.staticfiles import StaticFiles
-from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker
+from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens
 from app.services.spoiler_detector import get_classifier as get_spoiler_classifier
 from app.services.vulgarity_filter import get_classifier as get_vulgarity_classifier
-from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens
+from app.services.recommendations import get_embedding_model
+from app.services.movie_picker import get_zero_shot_classifier
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_spoiler_classifier()
     get_vulgarity_classifier()
+    get_embedding_model()
+    get_zero_shot_classifier()
     yield
 
 app = FastAPI(

@@ -76,7 +76,8 @@ MOOD_GENRE_AFFINITY = {
         "Horror": -1.0,
         "War": -0.8,
         "Thriller": -0.5,
-        "Crime": -0.4,
+        "Crime": -0.5,
+        "Action": -0.3,
     },
     "thoughtful": {
         "Drama": 0.9,
@@ -90,6 +91,8 @@ MOOD_GENRE_AFFINITY = {
         "Drama": 0.7,
         "Music": 0.45,
         "Comedy": 0.35,
+        "Action": -0.3,
+        "Crime": -0.5,
         "Horror": -0.8,
         "War": -0.6,
     },
@@ -98,6 +101,10 @@ MOOD_GENRE_AFFINITY = {
         "Animation": 0.6,
         "Family": 0.5,
         "Adventure": 0.25,
+        "Drama": -0.2,
+        "Action": -0.3,
+        "Thriller": -0.6,
+        "Crime": -0.5,
         "Horror": -0.5,
         "War": -0.6,
     },
@@ -109,12 +116,16 @@ MOOD_GENRE_AFFINITY = {
         "Drama": 0.3,
         "Family": -0.5,
         "Animation": -0.3,
+        "Comedy": -0.4,
+        "Romance": -0.2,
     },
     "mind_bending": {
         "Science Fiction": 1.0,
         "Mystery": 0.85,
         "Thriller": 0.55,
         "Drama": 0.25,
+        "Comedy": -0.2,
+        "Family": -0.3,
     },
     "adventurous": {
         "Adventure": 1.0,
@@ -122,6 +133,7 @@ MOOD_GENRE_AFFINITY = {
         "Fantasy": 0.7,
         "Science Fiction": 0.45,
         "Family": 0.35,
+        "Romance": -0.1,
     },
     "inspiring": {
         "Drama": 0.75,
@@ -130,6 +142,7 @@ MOOD_GENRE_AFFINITY = {
         "Family": 0.45,
         "Music": 0.4,
         "War": -0.25,
+        "Horror": -0.5,
     },
     "dark": {
         "Crime": 0.9,
@@ -139,6 +152,8 @@ MOOD_GENRE_AFFINITY = {
         "Mystery": 0.55,
         "Family": -0.8,
         "Animation": -0.4,
+        "Comedy": -0.6,
+        "Romance": -0.3,
     },
     "melancholic": {
         "Drama": 0.9,
@@ -146,7 +161,9 @@ MOOD_GENRE_AFFINITY = {
         "Music": 0.45,
         "History": 0.3,
         "Comedy": -0.2,
-        "Action": -0.25,
+        "Action": -0.3,
+        "Thriller": -0.2,
+        "Crime": -0.2,
     },
     "nostalgic": {
         "Drama": 0.65,
@@ -154,18 +171,24 @@ MOOD_GENRE_AFFINITY = {
         "Animation": 0.45,
         "Romance": 0.35,
         "Music": 0.35,
+        "Horror": -0.4,
     },
     "relaxing": {
         "Family": 0.75,
         "Animation": 0.7,
         "Comedy": 0.55,
         "Romance": 0.4,
+        "Action": -0.6,
         "Thriller": -0.8,
         "Horror": -1.0,
         "War": -0.8,
         "Crime": -0.5,
     },
 }
+
+VALID_AVOID_SIGNALS = frozenset(AVOID_TO_MOOD_LABELS) | frozenset({
+    "horror", "war", "violence", "sad", "dark",
+})
 
 AVOID_KEYWORDS = {
     "horror": ["horror", "haunted", "demon", "ghost", "supernatural terror"],
@@ -215,11 +238,14 @@ def normalize_mood(mood: Optional[str]) -> Optional[str]:
 
 
 def normalize_avoid(avoid: list[str]) -> list[str]:
-    return [
-        item.strip().lower().replace("-", "_").replace(" ", "_")
-        for item in avoid
-        if item and item.strip()
-    ]
+    result = []
+    for item in avoid:
+        if not item or not item.strip():
+            continue
+        normalized = item.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalized in VALID_AVOID_SIGNALS:
+            result.append(normalized)
+    return result
 
 
 def get_blocked_moods_from_avoid(avoid: list[str]) -> set[str]:
@@ -282,15 +308,22 @@ def interpret_picker_request(payload: MoviePickerSessionCreate) -> tuple[str, li
     if payload.prompt and payload.prompt.strip():
         prompt_primary, prompt_secondary = classify_prompt_mood(payload.prompt.strip())
 
-        primary_mood = mood or prompt_primary
-        if primary_mood in blocked_moods and mood is None:
-            primary_mood = "comforting"
-
-        secondary_moods = [
-            label
-            for label in [prompt_primary, *prompt_secondary]
-            if label != primary_mood and label not in blocked_moods
-        ][:3]
+        if mood:
+            # User made an explicit choice — treat the prompt as context, not as
+            # a mood signal. Secondary moods from the prompt describe the user's
+            # day, not the desired movie type, and would pollute genre scoring.
+            primary_mood = mood
+            secondary_moods = []
+        else:
+            # No explicit mood — infer everything from the prompt.
+            primary_mood = prompt_primary
+            if primary_mood in blocked_moods:
+                primary_mood = "comforting"
+            secondary_moods = [
+                label
+                for label in prompt_secondary
+                if label != primary_mood and label not in blocked_moods
+            ][:2]
     else:
         primary_mood = mood or "thoughtful"
         secondary_moods = []
@@ -369,14 +402,15 @@ def score_genre_affinity(movie_genres: list[str], moods: list[str]) -> float:
         return 0.0
 
     total = 0.0
-    count = 0
+    count = 0.0
 
-    for mood in moods:
+    for i, mood in enumerate(moods):
+        weight = 1.0 if i == 0 else 0.5  # primary: full weight, secondary: half
         affinities = MOOD_GENRE_AFFINITY.get(mood, {})
         for genre in movie_genres:
             if genre in affinities:
-                total += affinities[genre]
-                count += 1
+                total += affinities[genre] * weight
+                count += weight
 
     if count == 0:
         return 0.0
@@ -481,6 +515,17 @@ def rank_movies_for_picker(
         movie_genres = get_movie_genre_names(movie)
 
         semantic_score = cosine_similarity(query_embedding, candidate.embedding)
+
+        # Floor: skip completely unrelated movies
+        if semantic_score < 0.15:
+            continue
+
+        # Mismatch dampener: if the primary mood alone strongly rejects this movie's
+        # genres, cap how much semantic similarity can compensate
+        primary_genre_score = score_genre_affinity(movie_genres, [primary_mood])
+        if primary_genre_score < -0.25:
+            semantic_score *= 0.65
+
         genre_score = score_genre_affinity(movie_genres, moods)
         rating_score = score_rating(movie)
         popularity_score = score_popularity(movie)
@@ -489,10 +534,10 @@ def rank_movies_for_picker(
         avoid_penalty = score_avoid_penalty(avoided_signals)
 
         final_score = (
-            0.60 * semantic_score
-            + 0.22 * genre_score
+            0.55 * semantic_score
+            + 0.28 * genre_score
             + 0.10 * rating_score
-            + 0.08 * popularity_score
+            + 0.07 * popularity_score
             - avoid_penalty
         )
 

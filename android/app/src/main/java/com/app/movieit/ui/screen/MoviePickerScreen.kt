@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -350,140 +348,158 @@ fun MoviePickerScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color(0xFF14142A))
                     ) {
-                        // Poster
-                        Box(
+                        // ── Header row: poster (left) + info (right) ──────────
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                                .background(Color(0xFF1E1E2A))
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
-                            AsyncImage(
-                                model = pick.movie.posterUrl,
-                                contentDescription = "${pick.movie.title} poster",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            // Rating badge
-                            if (pick.movie.avgRating > 0f) {
+                            // Poster — same style as MovieDetailScreen
+                            Box(
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .aspectRatio(2f / 3f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0x33AB6DFF), RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF1E1E2A))
+                            ) {
+                                AsyncImage(
+                                    model = pick.movie.posterUrl,
+                                    contentDescription = "${pick.movie.title} poster",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                // Subtle bottom gradient
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.Black.copy(alpha = 0.7f))
-                                        .padding(horizontal = 6.dp, vertical = 3.dp)
-                                ) {
+                                        .matchParentSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colorStops = arrayOf(
+                                                    0f to Color.Transparent,
+                                                    0.7f to Color.Transparent,
+                                                    1f to Color(0x80070711)
+                                                )
+                                            )
+                                        )
+                                )
+                            }
+
+                            // Info column (right)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Year chip
+                                val year = pick.movie.releaseDate?.take(4).orEmpty()
+                                if (year.isNotBlank()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(AccentPurple.copy(alpha = 0.18f))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(year, color = GlowPurple, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                Text(
+                                    text = pick.movie.title,
+                                    color = TextPrimary,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = (-0.3).sp,
+                                    lineHeight = 22.sp,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                // Rating chip
+                                if (pick.movie.avgRating > 0f) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = null,
-                                            tint = GoldAccent,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Text(
-                                            text = "%.1f".format(pick.movie.avgRating),
-                                            color = GoldAccent,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(13.dp))
+                                        Text("%.1f".format(pick.movie.avgRating), color = GoldAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // Genre chips
+                                if (pick.matchedGenres.isNotEmpty()) {
+                                    androidx.compose.foundation.layout.FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        pick.matchedGenres.forEach { genre ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(AccentPurple.copy(alpha = 0.2f))
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(genre, color = GlowPurple, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // Card content
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
+                        // ── Reason text ────────────────────────────────────────
+                        if (pick.reason.isNotBlank()) {
                             Text(
-                                text = pick.movie.title,
-                                color = TextPrimary,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-0.5).sp
+                                text = pick.reason,
+                                color = TextSecondary,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 14.dp)
                             )
+                        }
 
-                            if (pick.reason.isNotBlank()) {
-                                Text(
-                                    text = pick.reason,
-                                    color = TextSecondary,
-                                    fontSize = 14.sp,
-                                    lineHeight = 20.sp,
-                                    maxLines = 5,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                        // Avoided signals (subtle)
+                        if (pick.avoidedSignals.isNotEmpty()) {
+                            Text(
+                                text = "Avoided: ${pick.avoidedSignals.joinToString(", ")}",
+                                color = TextSecondary.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            )
+                        }
 
-                            // Genre chips
-                            if (pick.matchedGenres.isNotEmpty()) {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    items(pick.matchedGenres) { genre ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(AccentPurple.copy(alpha = 0.2f))
-                                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = genre,
-                                                color = GlowPurple,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Avoided signals (subtle)
-                            if (pick.avoidedSignals.isNotEmpty()) {
-                                Text(
-                                    text = "Avoided: ${pick.avoidedSignals.joinToString(", ")}",
-                                    color = TextSecondary.copy(alpha = 0.6f),
-                                    fontSize = 11.sp
-                                )
-                            }
-
-                            // Action buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        // ── Action buttons ─────────────────────────────────────
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { onMovieClick(pick.movie.id) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentPurple),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentPurple)
                             ) {
-                                OutlinedButton(
-                                    onClick = { onMovieClick(pick.movie.id) },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentPurple),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentPurple)
-                                ) {
-                                    Text(
-                                        text = "View details",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Button(
-                                    onClick = { viewModel.anotherPick() },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                                    enabled = pick.hasMore
-                                ) {
-                                    Text(
-                                        text = if (pick.hasMore) "Another pick" else "No more picks",
-                                        color = TextPrimary,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
+                                Text("View details", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Button(
+                                onClick = { viewModel.anotherPick() },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                                enabled = pick.hasMore
+                            ) {
+                                Text(
+                                    text = if (pick.hasMore) "Another pick" else "No more picks",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }

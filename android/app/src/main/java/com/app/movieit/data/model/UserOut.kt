@@ -10,3 +10,7 @@ data class UserOut(
     val role: String? = null,
     @SerializedName("profile_picture_url") val profilePictureUrl: String? = null
 )
+
+data class ProfileStatsOut(
+    @SerializedName("favorite_genre") val favoriteGenre: String?
+)

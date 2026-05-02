@@ -1,6 +1,7 @@
 package com.app.movieit.data.api
 
 import com.app.movieit.data.model.LoginRequest
+import com.app.movieit.data.model.ProfileStatsOut
 import com.app.movieit.data.model.RegisterRequest
 import com.app.movieit.data.model.TokenResponse
 import com.app.movieit.data.model.UserOut
@@ -20,6 +21,9 @@ interface AuthApi {
 
     @retrofit2.http.GET("auth/me")
     suspend fun getMe(): Response<UserOut>
+
+    @retrofit2.http.GET("auth/me/stats")
+    suspend fun getProfileStats(): Response<ProfileStatsOut>
 
     @Multipart
     @PUT("auth/me/profile-picture")
