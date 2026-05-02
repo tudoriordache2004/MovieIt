@@ -634,7 +634,13 @@ def get_pick_from_session(
             detail="No matching movies found",
         )
 
-    safe_cursor = cursor % len(session.ranked_results)
+    if cursor >= len(session.ranked_results):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No more movie picker results available for this session",
+        )
+
+    safe_cursor = cursor
     result = session.ranked_results[safe_cursor]
     movie_id = result["movie_id"]
 
@@ -675,8 +681,11 @@ def get_next_pick_for_session(
 
     next_cursor = session.current_cursor + 1
 
-    if session.ranked_results:
-        next_cursor = next_cursor % len(session.ranked_results)
+    if next_cursor >= len(session.ranked_results):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No more movie picker results available for this session",
+        )
 
     session.current_cursor = next_cursor
     db.commit()

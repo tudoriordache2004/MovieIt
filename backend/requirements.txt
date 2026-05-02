@@ -17,3 +17,5 @@ numpy
 sentencepiece 
 tiktoken
 protobuf
+Pillow
+pgvector
