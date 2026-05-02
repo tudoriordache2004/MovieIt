@@ -3,6 +3,7 @@ package com.app.movieit.di
 import android.content.Context
 import com.app.movieit.data.api.AuthApi
 import com.app.movieit.data.api.MovieApi
+import com.app.movieit.data.api.LensApi
 import com.app.movieit.data.api.MoviePickerApi
 import com.app.movieit.data.api.RecommendationApi
 import com.app.movieit.data.api.ReviewApi
@@ -115,4 +116,9 @@ object NetworkModule {
     @Singleton
     fun provideMoviePickerApi(retrofit: Retrofit): MoviePickerApi =
         retrofit.create(MoviePickerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideLensApi(retrofit: Retrofit): LensApi =
+        retrofit.create(LensApi::class.java)
 }

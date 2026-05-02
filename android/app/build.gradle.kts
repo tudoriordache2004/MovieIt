@@ -83,4 +83,9 @@ dependencies {
 
     // Icons - pentru Star Rating
     implementation("androidx.compose.material:material-icons-extended")
+
+    // CameraX - for MovieIt Lens
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
 }

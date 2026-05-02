@@ -16,6 +16,47 @@ from app.models.review import Review
 
 CLIP_MODEL = "openai/clip-vit-base-patch32"
 
+SAFE_GENRES = {"Animation", "Comedy", "Family", "Romance", "Adventure"}
+DARK_GENRES = {"Crime", "Horror", "Thriller", "War"}
+INTENSE_GENRES = {"Action", "Crime", "Horror", "Thriller", "War", "Western"}
+
+GENRE_MOOD_MAP = {
+    "Action": "energetic",
+    "Adventure": "escapist",
+    "Animation": "comfort",
+    "Comedy": "playful",
+    "Crime": "dark",
+    "Documentary": "curious",
+    "Drama": "reflective",
+    "Family": "comfort",
+    "Fantasy": "escapist",
+    "History": "reflective",
+    "Horror": "intense",
+    "Music": "emotional",
+    "Mystery": "curious",
+    "Romance": "romantic",
+    "Science Fiction": "mind_bending",
+    "TV Movie": "comfort",
+    "Thriller": "tense",
+    "War": "heavy",
+    "Western": "gritty",
+}
+
+MOOD_COMPATIBILITY = {
+    "bright": {"comfort", "playful", "escapist", "romantic", "inspiring"},
+    "comfort": {"comfort", "playful", "romantic", "inspiring"},
+    "escapist": {"escapist", "comfort", "playful", "inspiring"},
+    "hopeful": {"inspiring", "comfort", "playful", "escapist"},
+    "inspiring": {"inspiring", "escapist", "comfort", "reflective"},
+    "playful": {"playful", "comfort", "escapist"},
+    "romantic": {"romantic", "comfort", "reflective"},
+    "reflective": {"reflective", "emotional", "melancholic"},
+    "melancholic": {"melancholic", "reflective", "romantic"},
+    "dark": {"dark", "tense", "intense", "gritty"},
+    "intense": {"intense", "tense", "dark", "energetic"},
+    "mind_bending": {"mind_bending", "tense", "escapist"},
+}
+
 VISUAL_LABEL_PROMPTS = {
     # Cozy / soft everyday moods
     "cozy_home": {
@@ -84,6 +125,90 @@ VISUAL_LABEL_PROMPTS = {
         "genres": ["Adventure", "Family", "Drama"],
         "mood": "escapist",
         "modes": ["vibe", "cover"],
+        "moods": ["bright", "hopeful", "comfort", "escapist"],
+        "positive_genres": ["Adventure", "Family", "Animation", "Comedy"],
+        "soft_genres": ["Drama", "Romance", "Fantasy"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "bright",
+        "intensity": "low",
+    },
+    "sunny_flower": {
+        "label": "Sunny Flower",
+        "prompt": "a close bright sunny flower image with yellow petals, green leaves, daylight, gentle warmth, optimism, and peaceful nature",
+        "genres": ["Family", "Animation", "Adventure", "Comedy"],
+        "mood": "comfort",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["bright", "comfort", "hopeful", "playful"],
+        "positive_genres": ["Family", "Animation", "Comedy", "Adventure"],
+        "soft_genres": ["Romance", "Drama", "Fantasy"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "bright",
+        "intensity": "low",
+    },
+    "golden_field": {
+        "label": "Golden Field",
+        "prompt": "a golden sunny field or meadow with warm yellow light, open space, calm optimism, summer, and gentle adventure",
+        "genres": ["Adventure", "Family", "Drama", "Romance"],
+        "mood": "inspiring",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["bright", "hopeful", "escapist", "romantic"],
+        "positive_genres": ["Adventure", "Family", "Romance", "Animation"],
+        "soft_genres": ["Drama", "Fantasy"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "bright",
+        "intensity": "low",
+    },
+    "green_meadow": {
+        "label": "Green Meadow",
+        "prompt": "a fresh green meadow or garden in daylight with plants, peaceful nature, safety, softness, and quiet joy",
+        "genres": ["Family", "Adventure", "Animation", "Drama"],
+        "mood": "comfort",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["comfort", "bright", "escapist", "hopeful"],
+        "positive_genres": ["Family", "Animation", "Adventure", "Comedy"],
+        "soft_genres": ["Drama", "Romance"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "bright",
+        "intensity": "low",
+    },
+    "warm_sunset": {
+        "label": "Warm Sunset",
+        "prompt": "a warm sunset image with orange golden light, nostalgia, gentle emotion, calm beauty, and reflective optimism",
+        "genres": ["Romance", "Drama", "Adventure", "Family"],
+        "mood": "romantic",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["romantic", "reflective", "hopeful", "comfort"],
+        "positive_genres": ["Romance", "Drama", "Family", "Adventure"],
+        "soft_genres": ["Animation", "Comedy"],
+        "negative_genres": ["Horror", "Crime", "War"],
+        "brightness": "warm",
+        "intensity": "low",
+    },
+    "bright_playful_colors": {
+        "label": "Bright Playful Colors",
+        "prompt": "a colorful bright cheerful image with playful colors, friendly energy, joy, humor, animation, and light adventure",
+        "genres": ["Animation", "Comedy", "Family", "Adventure"],
+        "mood": "playful",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["playful", "comfort", "bright", "escapist"],
+        "positive_genres": ["Animation", "Comedy", "Family", "Adventure"],
+        "soft_genres": ["Fantasy", "Romance"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "bright",
+        "intensity": "low",
+    },
+    "pastel_daydream": {
+        "label": "Pastel Daydream",
+        "prompt": "a pastel soft dreamy image with gentle colors, innocence, imagination, calm wonder, and comforting fantasy",
+        "genres": ["Animation", "Family", "Fantasy", "Romance"],
+        "mood": "comfort",
+        "modes": ["vibe", "cover", "poster"],
+        "moods": ["comfort", "romantic", "escapist", "hopeful"],
+        "positive_genres": ["Animation", "Family", "Fantasy", "Romance"],
+        "soft_genres": ["Adventure", "Comedy", "Drama"],
+        "negative_genres": ["Horror", "Crime", "Thriller", "War"],
+        "brightness": "soft",
+        "intensity": "low",
     },
     "forest_fantasy": {
         "label": "Forest Fantasy",
@@ -410,6 +535,12 @@ def classify_image_labels(
                 "score": round(score, 4),
                 "genres": metadata["genres"],
                 "mood": metadata["mood"],
+                "moods": metadata.get("moods", [metadata["mood"]]),
+                "positive_genres": metadata.get("positive_genres", metadata["genres"]),
+                "soft_genres": metadata.get("soft_genres", []),
+                "negative_genres": metadata.get("negative_genres", []),
+                "brightness": metadata.get("brightness"),
+                "intensity": metadata.get("intensity"),
             }
         )
 
@@ -438,8 +569,18 @@ def collect_genres_from_labels(labels: list[dict]) -> list[str]:
     genre_scores: dict[str, float] = {}
 
     for label in labels:
-        for genre in label["genres"]:
+        label_genres = (
+            label.get("positive_genres")
+            or label.get("genres")
+            or []
+        )
+        soft_genres = label.get("soft_genres") or []
+
+        for genre in label_genres:
             genre_scores[genre] = genre_scores.get(genre, 0.0) + float(label["score"])
+
+        for genre in soft_genres:
+            genre_scores[genre] = genre_scores.get(genre, 0.0) + (0.55 * float(label["score"]))
 
     return [
         genre
@@ -453,6 +594,171 @@ def collect_genres_from_labels(labels: list[dict]) -> list[str]:
 
 def get_movie_genre_names(movie: Movie) -> list[str]:
     return [genre.name for genre in getattr(movie, "genre_list", []) or []]
+
+
+def collect_weighted_label_values(labels: list[dict], field_name: str, fallback_field: str | None = None) -> dict[str, float]:
+    values: dict[str, float] = {}
+
+    for label in labels:
+        label_score = max(float(label.get("score", 0.0)), 0.01)
+        raw_values = label.get(field_name)
+
+        if not raw_values and fallback_field:
+            raw_values = label.get(fallback_field)
+
+        if isinstance(raw_values, str):
+            raw_values = [raw_values]
+
+        for value in raw_values or []:
+            values[value] = values.get(value, 0.0) + label_score
+
+    return values
+
+
+def score_weighted_overlap(movie_genres: list[str], weighted_targets: dict[str, float]) -> float:
+    if not movie_genres or not weighted_targets:
+        return 0.0
+
+    movie_genre_set = set(movie_genres)
+    total_weight = sum(weighted_targets.values())
+    if total_weight <= 0:
+        return 0.0
+
+    matched_weight = sum(
+        weight for genre, weight in weighted_targets.items()
+        if genre in movie_genre_set
+    )
+    return min(matched_weight / total_weight, 1.0)
+
+
+def infer_movie_moods(movie_genres: list[str]) -> set[str]:
+    return {
+        mood
+        for genre in movie_genres
+        if (mood := GENRE_MOOD_MAP.get(genre))
+    }
+
+
+def score_mood_compatibility(movie_genres: list[str], labels: list[dict]) -> float:
+    movie_moods = infer_movie_moods(movie_genres)
+    if not movie_moods:
+        return 0.0
+
+    target_moods = collect_weighted_label_values(labels, "moods", fallback_field="mood")
+    if not target_moods:
+        return 0.0
+
+    total_weight = sum(target_moods.values())
+    if total_weight <= 0:
+        return 0.0
+
+    matched_weight = 0.0
+    for target_mood, weight in target_moods.items():
+        compatible_moods = MOOD_COMPATIBILITY.get(target_mood, {target_mood})
+        if movie_moods & compatible_moods:
+            matched_weight += weight
+
+    return min(matched_weight / total_weight, 1.0)
+
+
+def score_safety_fit(movie_genres: list[str], labels: list[dict]) -> float:
+    movie_genre_set = set(movie_genres)
+    has_safe_genre = bool(movie_genre_set & SAFE_GENRES)
+    has_dark_genre = bool(movie_genre_set & DARK_GENRES)
+
+    wants_safe = any(
+        label.get("brightness") in {"bright", "soft", "warm"}
+        or label.get("intensity") == "low"
+        or label.get("mood") in {"comfort", "inspiring", "playful"}
+        for label in labels
+    )
+
+    if not wants_safe:
+        return 0.0
+
+    if has_safe_genre and not has_dark_genre:
+        return 1.0
+    if has_safe_genre:
+        return 0.45
+    if has_dark_genre:
+        return 0.0
+    return 0.25
+
+
+def score_negative_genre_penalty(movie_genres: list[str], labels: list[dict]) -> float:
+    movie_genre_set = set(movie_genres)
+    weighted_negative_genres = collect_weighted_label_values(labels, "negative_genres")
+
+    if not movie_genre_set or not weighted_negative_genres:
+        return 0.0
+
+    total_weight = sum(weighted_negative_genres.values())
+    if total_weight <= 0:
+        return 0.0
+
+    matched_weight = sum(
+        weight for genre, weight in weighted_negative_genres.items()
+        if genre in movie_genre_set
+    )
+    return min(matched_weight / total_weight, 1.0)
+
+
+def score_dark_mismatch_penalty(movie_genres: list[str], labels: list[dict]) -> float:
+    movie_genre_set = set(movie_genres)
+    if not movie_genre_set & INTENSE_GENRES:
+        return 0.0
+
+    bright_low_intensity = any(
+        label.get("brightness") in {"bright", "soft", "warm"}
+        and label.get("intensity") == "low"
+        for label in labels
+    )
+
+    if not bright_low_intensity:
+        return 0.0
+
+    intense_count = len(movie_genre_set & INTENSE_GENRES)
+    return min(0.35 + (0.15 * intense_count), 1.0)
+
+
+def score_dark_text_penalty(movie: Movie, labels: list[dict]) -> float:
+    bright_low_intensity = any(
+        label.get("brightness") in {"bright", "soft", "warm"}
+        and label.get("intensity") == "low"
+        for label in labels
+    )
+
+    if not bright_low_intensity:
+        return 0.0
+
+    source_text = f"{movie.title or ''} {movie.description or ''}".lower()
+    dark_terms = {
+        "assassin", "blood", "curse", "dark", "death", "demon", "evil",
+        "gothic", "haunted", "killer", "maleficent", "murder", "nightmare",
+        "revenge", "shadow", "terror", "violent", "war", "witch",
+    }
+    matched_terms = sum(1 for term in dark_terms if term in source_text)
+
+    if matched_terms == 0:
+        return 0.0
+
+    return min(0.25 + (0.12 * matched_terms), 1.0)
+
+
+def get_visual_similarity_threshold(mode: str) -> float:
+    if mode == "poster":
+        return 0.50
+    if mode == "cover":
+        return 0.47
+    return 0.48
+
+
+def score_low_similarity_penalty(visual_similarity: float, mode: str) -> float:
+    threshold = get_visual_similarity_threshold(mode)
+    if visual_similarity >= threshold:
+        return 0.0
+
+    return min((threshold - visual_similarity) / 0.18, 1.0)
 
 
 def build_lens_title(labels: list[dict]) -> str:
@@ -489,6 +795,12 @@ def rank_lens_recommendations(
 ) -> list[dict]:
     seen_movie_ids = get_seen_movie_ids(db, user_id)
     target_genres = collect_genres_from_labels(visual_labels)
+    weighted_positive_genres = collect_weighted_label_values(
+        visual_labels,
+        "positive_genres",
+        fallback_field="genres",
+    )
+    weighted_soft_genres = collect_weighted_label_values(visual_labels, "soft_genres")
 
     candidate_limit = max(limit * 20, 100)
 
@@ -518,20 +830,62 @@ def rank_lens_recommendations(
         movie_genres = get_movie_genre_names(movie)
 
         visual_similarity = cosine_similarity_vector(image_embedding, candidate.embedding)
-        genre_overlap = score_genre_overlap(movie_genres, target_genres)
+        positive_genre_fit = score_weighted_overlap(movie_genres, weighted_positive_genres)
+        soft_genre_fit = score_weighted_overlap(movie_genres, weighted_soft_genres)
+        genre_fit = min(positive_genre_fit + (0.45 * soft_genre_fit), 1.0)
+        mood_fit = score_mood_compatibility(movie_genres, visual_labels)
+        safety_fit = score_safety_fit(movie_genres, visual_labels)
+
+        negative_penalty = score_negative_genre_penalty(movie_genres, visual_labels)
+        dark_mismatch_penalty = score_dark_mismatch_penalty(movie_genres, visual_labels)
+        dark_text_penalty = score_dark_text_penalty(movie, visual_labels)
+        low_similarity_penalty = score_low_similarity_penalty(visual_similarity, mode)
 
         if mode == "vibe":
-            final_score = (0.55 * genre_overlap) + (0.35 * visual_similarity)
+            final_score = (
+                (0.43 * visual_similarity)
+                + (0.22 * genre_fit)
+                + (0.22 * mood_fit)
+                + (0.08 * safety_fit)
+            )
+            final_score -= (
+                (0.18 * negative_penalty)
+                + (0.12 * dark_mismatch_penalty)
+                + (0.12 * dark_text_penalty)
+                + (0.10 * low_similarity_penalty)
+            )
         elif mode == "cover":
-            final_score = (0.65 * visual_similarity) + (0.25 * genre_overlap)
+            final_score = (
+                (0.52 * visual_similarity)
+                + (0.18 * genre_fit)
+                + (0.18 * mood_fit)
+                + (0.06 * safety_fit)
+            )
+            final_score -= (
+                (0.14 * negative_penalty)
+                + (0.10 * dark_mismatch_penalty)
+                + (0.09 * dark_text_penalty)
+                + (0.08 * low_similarity_penalty)
+            )
         else:  # poster
-            final_score = (0.60 * visual_similarity) + (0.30 * genre_overlap)
+            final_score = (
+                (0.50 * visual_similarity)
+                + (0.20 * genre_fit)
+                + (0.18 * mood_fit)
+                + (0.07 * safety_fit)
+            )
+            final_score -= (
+                (0.14 * negative_penalty)
+                + (0.10 * dark_mismatch_penalty)
+                + (0.08 * dark_text_penalty)
+                + (0.08 * low_similarity_penalty)
+            )
 
         if movie.avg_rating:
-            final_score += 0.05 * min(movie.avg_rating / 10.0, 1.0)
+            final_score += 0.03 * min(movie.avg_rating / 10.0, 1.0)
 
         if movie.popularity:
-            final_score += 0.05 * min(movie.popularity / 1000.0, 1.0)
+            final_score += 0.02 * min(movie.popularity / 1000.0, 1.0)
 
         matched_genres = [
             genre for genre in movie_genres if genre in target_genres
@@ -549,7 +903,7 @@ def rank_lens_recommendations(
         ranked.append(
             {
                 "movie": movie,
-                "score": round(float(final_score), 4),
+                "score": round(float(max(final_score, 0.0)), 4),
                 "reason": reason,
                 "visual_similarity": round(float(visual_similarity), 4),
                 "matched_genres": matched_genres,

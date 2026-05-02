@@ -42,6 +42,7 @@ import com.app.movieit.ui.screen.AuthGateScreen
 import com.app.movieit.ui.screen.HomeScreen
 import com.app.movieit.ui.screen.LoginScreen
 import com.app.movieit.ui.screen.MovieDetailScreen
+import com.app.movieit.ui.screen.MovieItLensScreen
 import com.app.movieit.ui.screen.MoviePickerScreen
 import com.app.movieit.ui.screen.MoviesScreen
 import com.app.movieit.ui.screen.MyDiaryScreen
@@ -131,12 +132,22 @@ fun AppNav() {
                     },
                     onPickerClick = {
                         navController.navigate(Routes.MOVIE_PICKER)
+                    },
+                    onLensClick = {
+                        navController.navigate(Routes.MOVIEIT_LENS)
                     }
                 )
             }
 
             composable(Routes.MOVIE_PICKER) {
                 MoviePickerScreen(
+                    onBack = { navController.popBackStack() },
+                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) }
+                )
+            }
+
+            composable(Routes.MOVIEIT_LENS) {
+                MovieItLensScreen(
                     onBack = { navController.popBackStack() },
                     onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) }
                 )
