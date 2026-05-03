@@ -198,3 +198,20 @@ def get_my_diary_count(
         or 0
     )
     return {"count": int(count)}
+
+
+@router.get("/{entry_id}", response_model=DiaryOut)
+def get_diary_entry(
+    entry_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entry = (
+        db.query(DiaryEntry)
+        .options(joinedload(DiaryEntry.movie), joinedload(DiaryEntry.review))
+        .filter(DiaryEntry.id == entry_id, DiaryEntry.user_id == current_user.id)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return entry

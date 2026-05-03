@@ -7,6 +7,7 @@ import com.app.movieit.data.api.LensApi
 import com.app.movieit.data.api.MoviePickerApi
 import com.app.movieit.data.api.RecommendationApi
 import com.app.movieit.data.api.ReviewApi
+import com.app.movieit.data.api.UserApi
 import com.app.movieit.util.Constants
 import com.app.movieit.data.auth.TokenManager
 import com.app.movieit.data.api.WatchlistApi
@@ -121,4 +122,9 @@ object NetworkModule {
     @Singleton
     fun provideLensApi(retrofit: Retrofit): LensApi =
         retrofit.create(LensApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi =
+        retrofit.create(UserApi::class.java)
 }

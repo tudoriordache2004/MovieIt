@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,92 +74,19 @@ import java.util.Locale
 @Composable
 fun MyDiaryScreen(
     onMovieClick: (Int) -> Unit,
+    onEditEntry: (entryId: Int, movieId: Int) -> Unit = { _, _ -> },
+    shouldRefresh: Boolean = false,
+    onRefreshHandled: () -> Unit = {},
     viewModel: DiaryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     var confirmDeleteId by remember { mutableStateOf<Int?>(null) }
 
-    // ── Edit dialog ────────────────────────────────────────────────────────────
-    if (state.editingEntryId != null) {
-        AlertDialog(
-            onDismissRequest = { if (!state.saving) viewModel.cancelEdit() },
-            containerColor = Color(0xFF1A0F2E),
-            titleContentColor = TextPrimary,
-            textContentColor = TextSecondary,
-            title = { Text("Edit diary entry", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (state.error != null) {
-                        Text("Error: ${state.error}", color = ErrorRed, fontSize = 13.sp)
-                    }
-                    OutlinedTextField(
-                        value = state.editWatchedOn,
-                        onValueChange = viewModel::onEditWatchedOnChange,
-                        label = { Text("Watched on (YYYY-MM-DD)", color = TextSecondary, fontSize = 12.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentPurple,
-                            unfocusedBorderColor = BorderColor,
-                            cursorColor = GlowPurple,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        )
-                    )
-                    val r = state.editRating
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Rating", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        if (r == null) {
-                            Text("(optional)", color = TextSecondary, fontSize = 13.sp)
-                            TextButton(onClick = { viewModel.onEditRatingChange(6) }) {
-                                Text("Set", color = AccentPurple)
-                            }
-                        } else {
-                            TextButton(onClick = { viewModel.clearEditRating() }) {
-                                Text("Clear", color = ErrorRed)
-                            }
-                        }
-                    }
-                    if (r != null) {
-                        StarRatingInput(rating = r, onRatingChange = { viewModel.onEditRatingChange(it) })
-                    } else {
-                        Text("No rating set", color = TextSecondary, fontSize = 13.sp)
-                    }
-                    OutlinedTextField(
-                        value = state.editComment,
-                        onValueChange = viewModel::onEditCommentChange,
-                        label = { Text("Comment (optional)", color = TextSecondary, fontSize = 12.sp) },
-                        minLines = 2,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentPurple,
-                            unfocusedBorderColor = BorderColor,
-                            cursorColor = GlowPurple,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { viewModel.saveEdit() },
-                    enabled = !state.saving,
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
-                ) {
-                    if (state.saving) CircularProgressIndicator(modifier = Modifier.size(16.dp), color = TextPrimary)
-                    else Text("Save", color = TextPrimary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.cancelEdit() }, enabled = !state.saving) {
-                    Text("Cancel", color = TextSecondary)
-                }
-            }
-        )
+    LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            viewModel.load()
+            onRefreshHandled()
+        }
     }
 
     // ── Delete confirm dialog ──────────────────────────────────────────────────
@@ -267,7 +195,7 @@ fun MyDiaryScreen(
                                     DiaryCard(
                                         entry = entry,
                                         onClick = { onMovieClick(entry.movie.id) },
-                                        onEdit = { viewModel.startEdit(entry) },
+                                        onEdit = { onEditEntry(entry.id, entry.movie.id) },
                                         onDelete = { confirmDeleteId = entry.id }
                                     )
                                 }

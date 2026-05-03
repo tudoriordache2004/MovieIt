@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.app.movieit.data.api.AuthApi
 import com.app.movieit.data.api.DiaryApi
 import com.app.movieit.data.api.ReviewApi
+import com.app.movieit.data.api.UserApi
 import com.app.movieit.data.api.WatchlistApi
 import com.app.movieit.data.auth.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,13 +23,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 data class ProfileUiState(
     val loading: Boolean = true,
     val error: String? = null,
+    val userId: Int? = null,
     val username: String? = null,
     val profilePictureUrl: String? = null,
     val uploading: Boolean = false,
     val diaryCount: Int = 0,
     val watchlistCount: Int = 0,
     val reviewsCount: Int = 0,
-    val favoriteGenre: String? = null
+    val favoriteGenre: String? = null,
+    val followersCount: Int = 0,
+    val followingCount: Int = 0
 )
 
 @HiltViewModel
@@ -37,7 +41,8 @@ class ProfileViewModel @Inject constructor(
     private val authApi: AuthApi,
     private val diaryApi: DiaryApi,
     private val watchlistApi: WatchlistApi,
-    private val reviewApi: ReviewApi
+    private val reviewApi: ReviewApi,
+    private val userApi: UserApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -62,14 +67,20 @@ class ProfileViewModel @Inject constructor(
                 val reviewsCountResp = reviewApi.getMyReviewsCount()
                 val statsResp = authApi.getProfileStats()
 
+                val myId = if (meResp.isSuccessful) meResp.body()?.id else null
+                val socialResp = myId?.let { userApi.getUserProfile(it) }
+
                 _uiState.update {
                     it.copy(
                         loading = false,
+                        userId = myId ?: it.userId,
                         profilePictureUrl = if (meResp.isSuccessful) meResp.body()?.profilePictureUrl else it.profilePictureUrl,
                         diaryCount = if (diaryCountResp.isSuccessful) (diaryCountResp.body()?.count ?: 0) else it.diaryCount,
                         watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
                         reviewsCount = if (reviewsCountResp.isSuccessful) (reviewsCountResp.body()?.count ?: 0) else it.reviewsCount,
-                        favoriteGenre = if (statsResp.isSuccessful) statsResp.body()?.favoriteGenre else it.favoriteGenre
+                        favoriteGenre = if (statsResp.isSuccessful) statsResp.body()?.favoriteGenre else it.favoriteGenre,
+                        followersCount = if (socialResp?.isSuccessful == true) socialResp.body()?.followersCount ?: it.followersCount else it.followersCount,
+                        followingCount = if (socialResp?.isSuccessful == true) socialResp.body()?.followingCount ?: it.followingCount else it.followingCount
                     )
                 }
             } catch (e: Exception) {

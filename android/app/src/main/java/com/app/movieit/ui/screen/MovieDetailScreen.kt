@@ -84,7 +84,6 @@ import com.app.movieit.ui.theme.GlowPurple
 import com.app.movieit.ui.theme.GoldAccent
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
-import com.app.movieit.ui.viewmodel.DiaryLogViewModel
 import com.app.movieit.ui.viewmodel.MovieDetailViewModel
 import com.app.movieit.ui.viewmodel.ReviewsUiState
 import com.app.movieit.ui.viewmodel.ReviewsViewModel
@@ -93,15 +92,25 @@ import java.util.Locale
 @Composable
 fun MovieDetailScreen(
     onBack: () -> Unit,
+    onUserClick: (Int) -> Unit = {},
+    onLogToDiary: () -> Unit = {},
+    refreshDiaryLog: Boolean = false,
+    onRefreshDiaryLogHandled: () -> Unit = {},
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val reviewsVm: ReviewsViewModel = hiltViewModel()
-    val diaryLogVm: DiaryLogViewModel = hiltViewModel()
-    val diaryLogState by diaryLogVm.uiState.collectAsState()
-    var showLogDialog by remember { mutableStateOf(false) }
     val reviewsState by reviewsVm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(refreshDiaryLog) {
+        if (refreshDiaryLog) {
+            viewModel.removeFromWatchlistIfPresent()?.join()
+            viewModel.load()
+            reviewsVm.load()
+            onRefreshDiaryLogHandled()
+        }
+    }
 
     LaunchedEffect(reviewsState.autoMarkedSpoiler) {
         if (reviewsState.autoMarkedSpoiler) {
@@ -122,16 +131,6 @@ fun MovieDetailScreen(
             viewModel.removeFromWatchlistIfPresent()?.join()
             viewModel.load()
             reviewsVm.consumeReviewPosted()
-        }
-    }
-
-    LaunchedEffect(diaryLogState.logged) {
-        if (diaryLogState.logged) {
-            showLogDialog = false
-            diaryLogVm.consumeLogged()
-            viewModel.removeFromWatchlistIfPresent()?.join()
-            viewModel.load()
-            reviewsVm.load()
         }
     }
 
@@ -189,7 +188,7 @@ fun MovieDetailScreen(
                             inWatchlist = state.inWatchlist,
                             watchlistBusy = state.watchlistBusy,
                             onToggleWatchlist = { viewModel.toggleWatchlist() },
-                            onLogToDiary = { showLogDialog = true }
+                            onLogToDiary = onLogToDiary
                         )
                     }
 
@@ -215,7 +214,8 @@ fun MovieDetailScreen(
                             onDelete = { reviewsVm.deleteReview(it) },
                             onSpoilerChange = { reviewsVm.onSpoilerChange(it) },
                             onEditSpoilerChange = { reviewsVm.onEditSpoilerChange(it) },
-                            onModerateDeleteReview = { reviewsVm.onModerateDeleteReview(it) }
+                            onModerateDeleteReview = { reviewsVm.onModerateDeleteReview(it) },
+                            onUserClick = onUserClick
                         )
                     }
                 }
@@ -233,16 +233,6 @@ fun MovieDetailScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        if (showLogDialog) {
-            LogDiaryDialog(
-                diaryLogState = diaryLogState,
-                onDismiss = { showLogDialog = false },
-                onCommentChange = { diaryLogVm.onCommentChange(it) },
-                onRatingChange = { diaryLogVm.onRatingChange(it) },
-                onClearRating = { diaryLogVm.clearRating() },
-                onSave = { diaryLogVm.logToDiary() }
-            )
-        }
     }
 }
 
@@ -495,7 +485,8 @@ fun ReviewsSection(
     onDelete: (Int) -> Unit,
     onSpoilerChange: (Boolean) -> Unit,
     onEditSpoilerChange: (Boolean) -> Unit,
-    onModerateDeleteReview: (Int) -> Unit
+    onModerateDeleteReview: (Int) -> Unit,
+    onUserClick: (Int) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -553,7 +544,8 @@ fun ReviewsSection(
                         editIsSpoiler = state.editIsSpoiler,
                         onEditSpoilerChange = onEditSpoilerChange,
                         currentUserRole = state.currentUserRole,
-                        onModerateDeleteReview = { onModerateDeleteReview(review.id) }
+                        onModerateDeleteReview = { onModerateDeleteReview(review.id) },
+                        onUserClick = { if (review.userId != state.currentUserId) onUserClick(review.userId) }
                     )
                 }
             }
@@ -589,7 +581,8 @@ private fun ReviewCard(
     editIsSpoiler: Boolean,
     onEditSpoilerChange: (Boolean) -> Unit,
     currentUserRole: String?,
-    onModerateDeleteReview: () -> Unit
+    onModerateDeleteReview: () -> Unit,
+    onUserClick: () -> Unit = {}
 ) {
     val isMine = currentUserId != null && review.userId == currentUserId
     val isEditing = editingReviewId == review.id
@@ -642,9 +635,10 @@ private fun ReviewCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     review.username ?: "User #${review.userId}",
-                    color = TextPrimary,
+                    color = if (!isMine) AccentPurple else TextPrimary,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    modifier = if (!isMine) Modifier.clickable { onUserClick() } else Modifier
                 )
                 if (!isEditing && review.rating != null && review.rating > 0) {
                     StarRatingInput(rating = review.rating, onRatingChange = {})

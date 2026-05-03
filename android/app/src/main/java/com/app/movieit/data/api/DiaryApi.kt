@@ -31,4 +31,7 @@ interface DiaryApi {
 
     @retrofit2.http.GET("diary/me/count")
     suspend fun getDiaryCount(): Response<DiaryCountOut>
+
+    @retrofit2.http.GET("diary/{entryId}")
+    suspend fun getDiaryEntry(@Path("entryId") entryId: Int): Response<DiaryOut>
 }

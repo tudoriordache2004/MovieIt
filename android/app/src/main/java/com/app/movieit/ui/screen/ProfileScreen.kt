@@ -69,6 +69,7 @@ fun ProfileScreen(
     onOpenDiary: () -> Unit,
     onOpenWatchlist: () -> Unit,
     onLogout: () -> Unit,
+    onNavigateToFollowList: (userId: Int, listType: String) -> Unit = { _, _ -> },
     shouldRefresh: Boolean = false,
     onRefreshHandled: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
@@ -213,6 +214,34 @@ fun ProfileScreen(
                     fontSize = 14.sp
                 )
 
+                Spacer(Modifier.height(20.dp))
+
+                // SOCIAL section
+                Text(
+                    text = "SOCIAL",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ProfileStatCard(
+                        "Followers", state.followersCount.toString(), Modifier.weight(1f),
+                        onClick = state.userId?.let { id -> { onNavigateToFollowList(id, "followers") } }
+                    )
+                    ProfileStatCard(
+                        "Following", state.followingCount.toString(), Modifier.weight(1f),
+                        onClick = state.userId?.let { id -> { onNavigateToFollowList(id, "following") } }
+                    )
+                }
+
                 Spacer(Modifier.height(24.dp))
 
                 // Quick-nav buttons
@@ -346,13 +375,15 @@ private fun ProfileStatCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    isText: Boolean = false
+    isText: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(CardBg)
             .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 12.dp, vertical = 16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

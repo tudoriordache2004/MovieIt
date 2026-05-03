@@ -17,7 +17,9 @@
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.MovieIT"
-        android:name=".MovieItApp">
+        android:name=".MovieItApp"
+        android:usesCleartextTraffic="true"> <!-- Pentru a putea conecta telefonul fizic -->
+
 
         <activity
             android:name=".MainActivity"
