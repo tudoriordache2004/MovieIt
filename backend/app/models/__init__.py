@@ -8,6 +8,7 @@ from .follow import Follow
 from app.models.movie_embedding import MovieEmbedding
 from app.models.movie_visual_embedding import MovieVisualEmbedding
 from app.models.movie_picker_session import MoviePickerSession
+from app.models.director import Director, MovieDirector
 
 # Import Base pentru a putea crea tabelele
 from app.database import Base
@@ -23,5 +24,7 @@ __all__ = [
     "MovieEmbedding",
     "MovieVisualEmbedding",
     "MoviePickerSession",
-    "Follow"
+    "Follow",
+    "Director",
+    "MovieDirector"
 ]

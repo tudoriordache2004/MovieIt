@@ -2,6 +2,7 @@ from pydantic import BaseModel, model_validator
 from datetime import datetime, date
 from typing import Optional, List
 from app.schemas.genre import GenreOut
+from app.schemas.director import DirectorOut
 
 
 class MovieImport(BaseModel):
@@ -18,13 +19,14 @@ class MovieOut(BaseModel):
     avg_rating: float
     created_at: datetime
     genres: List[GenreOut] = []
+    directors: List[DirectorOut] = []
 
     model_config = {"from_attributes": True}
 
     @model_validator(mode="before")
     @classmethod
-    def extract_genres(cls, obj):
-        if hasattr(obj, "genre_list"):
+    def extract_relationships(cls, obj):
+        if hasattr(obj, "genre_list") or hasattr(obj, "director_list"):
             return {
                 "id": obj.id,
                 "tmdb_id": obj.tmdb_id,
@@ -35,5 +37,6 @@ class MovieOut(BaseModel):
                 "avg_rating": obj.avg_rating,
                 "created_at": obj.created_at,
                 "genres": getattr(obj, "genre_list", None) or [],
+                "directors": getattr(obj, "director_list", None) or [],
             }
         return obj

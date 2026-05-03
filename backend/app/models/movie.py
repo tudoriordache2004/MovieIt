@@ -23,3 +23,5 @@ class Movie(Base):
     watchlist_items = relationship("Watchlist", back_populates="movie", cascade="all, delete-orphan")
     diary_entries = relationship("DiaryEntry", back_populates="movie", cascade="all, delete-orphan")
     visual_embedding = relationship("MovieVisualEmbedding", back_populates="movie", uselist=False, cascade="all, delete-orphan")
+    directors = relationship("MovieDirector", back_populates="movie", cascade="all, delete-orphan")
+    director_list = relationship("Director", secondary="movie_directors", viewonly=True)

@@ -213,12 +213,6 @@ private fun HomeLogoBar() {
             .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Filled.Theaters,
-            contentDescription = null,
-            tint = AccentPurple,
-            modifier = Modifier.size(40.dp)
-        )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = buildAnnotatedString {
@@ -309,8 +303,6 @@ private fun MoviePosterCard(recommendation: RecommendationOut, onClick: () -> Un
                 color = TextSecondary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }

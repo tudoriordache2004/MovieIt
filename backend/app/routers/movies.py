@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.movie import Movie
 from app.models.genre import Genre, MovieGenre
 from app.schemas.movie import MovieOut, MovieImport
+from app.models.director import Director, MovieDirector
 from app.services.tmdb import tmdb_service
 
 
@@ -50,13 +51,22 @@ def get_movies(
     if search:
         query = query.filter(Movie.title.ilike(f"{search}%"))
 
-    movies = query.options(joinedload(Movie.genre_list)).order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc()).offset(skip).limit(limit).all()
+    movies = query.options(
+        joinedload(Movie.genre_list),
+        joinedload(Movie.director_list),
+    ).order_by(
+        Movie.popularity.desc().nullslast(),
+        Movie.avg_rating.desc()
+    ).offset(skip).limit(limit).all()
     return movies
 
 @router.get("/{movie_id}", response_model=MovieOut)
 def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
     """Obține film după ID"""
-    movie = db.query(Movie).options(joinedload(Movie.genre_list)).filter(Movie.id == movie_id).first()
+    movie = db.query(Movie).options(
+        joinedload(Movie.genre_list),
+        joinedload(Movie.director_list),
+    ).filter(Movie.id == movie_id).first()
     if not movie:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -67,7 +77,10 @@ def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):
 @router.get("/tmdb/{tmdb_id}", response_model=MovieOut)
 def get_movie_by_tmdb_id(tmdb_id: int, db: Session = Depends(get_db)):
     """Obține film după TMDB ID"""
-    movie = db.query(Movie).filter(Movie.tmdb_id == tmdb_id).first()
+    movie = db.query(Movie).options(
+        joinedload(Movie.genre_list),
+        joinedload(Movie.director_list),
+    ).filter(Movie.tmdb_id == tmdb_id).first()
     if not movie:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -112,9 +125,46 @@ def create_movie(movie_data: MovieImport, db: Session = Depends(get_db)):
 
         db.add(MovieGenre(movie_id=db_movie.id, genre_id=genre.id))
 
+    # 5) Directors + movie_directors
+    try:
+        tmdb_directors = tmdb_service.get_movie_directors(movie_data.tmdb_id)
+    except Exception:
+        tmdb_directors = []
+
+    for tmdb_director in tmdb_directors:
+        tmdb_director_id = tmdb_director.get("id")
+        if not tmdb_director_id:
+            continue
+
+        director = db.query(Director).filter(Director.tmdb_id == tmdb_director_id).first()
+
+        if not director:
+            try:
+                tmdb_person = tmdb_service.get_person_details(tmdb_director_id)
+                parsed_director = tmdb_service.parse_director_data(tmdb_person)
+            except Exception:
+                parsed_director = {
+                    "tmdb_id": tmdb_director_id,
+                    "name": tmdb_director.get("name", ""),
+                    "biography": "",
+                    "profile_url": tmdb_service.get_profile_url(tmdb_director.get("profile_path")),
+                    "birthday": None,
+                    "deathday": None,
+                    "place_of_birth": None,
+                }
+
+            director = Director(**parsed_director)
+            db.add(director)
+            db.flush()
+
+        db.add(MovieDirector(movie_id=db_movie.id, director_id=director.id))
+
     db.commit()
     db.refresh(db_movie)
-    return db_movie
+    return db.query(Movie).options(
+        joinedload(Movie.genre_list),
+        joinedload(Movie.director_list),
+    ).filter(Movie.id == db_movie.id).first()
 
 @router.get("/genre/{genre_id}", response_model=List[MovieOut])
 def get_movies_by_genre(
@@ -131,7 +181,10 @@ def get_movies_by_genre(
             detail=f"Genre with id {genre_id} not found"
         )
     
-    movies = db.query(Movie).join(MovieGenre).filter(
+    movies = db.query(Movie).options(
+        joinedload(Movie.genre_list),
+        joinedload(Movie.director_list),
+    ).join(MovieGenre).filter(
         MovieGenre.genre_id == genre_id
     ).order_by(Movie.popularity.desc().nullslast()).offset(skip).limit(limit).all()
     

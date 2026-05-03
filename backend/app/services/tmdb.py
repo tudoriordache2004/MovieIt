@@ -1,7 +1,7 @@
 # backend/app/services/tmdb.py
 import requests
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, date
 from app.config import TMDB_API_KEY, TMDB_BASE_URL, TMDB_IMAGE_BASE_URL
 
 class TMDBService:
@@ -31,6 +31,45 @@ class TMDBService:
     
     def get_movie_details(self, tmdb_id: int) -> Dict:
         return self._make_request(f"movie/{tmdb_id}")
+
+    def get_movie_credits(self, tmdb_id: int) -> Dict:
+        return self._make_request(f"movie/{tmdb_id}/credits")
+
+    def get_person_details(self, person_id: int) -> Dict:
+        return self._make_request(f"person/{person_id}")
+
+    def get_profile_url(self, profile_path: Optional[str]) -> Optional[str]:
+        if not profile_path:
+            return None
+        return f"{self.image_base_url}{profile_path}"
+
+    def get_movie_directors(self, tmdb_id: int) -> List[Dict]:
+        credits = self.get_movie_credits(tmdb_id)
+        crew = credits.get("crew", [])
+        return [
+            person
+            for person in crew
+            if person.get("job") == "Director"
+        ]
+
+    def parse_person_date(self, value: Optional[str]) -> Optional[date]:
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+
+    def parse_director_data(self, tmdb_person: Dict) -> Dict:
+        return {
+            "tmdb_id": tmdb_person["id"],
+            "name": tmdb_person.get("name", ""),
+            "biography": tmdb_person.get("biography") or "",
+            "profile_url": self.get_profile_url(tmdb_person.get("profile_path")),
+            "birthday": self.parse_person_date(tmdb_person.get("birthday")),
+            "deathday": self.parse_person_date(tmdb_person.get("deathday")),
+            "place_of_birth": tmdb_person.get("place_of_birth"),
+        }
     
     def get_genres(self) -> List[Dict]:
         response = self._make_request("genre/movie/list")

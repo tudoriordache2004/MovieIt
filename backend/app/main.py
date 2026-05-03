@@ -9,7 +9,7 @@ from app.services.vulgarity_filter import get_classifier as get_vulgarity_classi
 from app.services.recommendations import get_embedding_model, get_sentiment_classifier
 from app.services.movie_picker import get_zero_shot_classifier
 from app.services.clip_lens import get_clip_model, get_clip_processor
-from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens, users
+from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens, users, directors
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,7 @@ app.include_router(recommendations.router)
 app.include_router(movie_picker.router)
 app.include_router(lens.router)
 app.include_router(users.router)
+app.include_router(directors.router)
 
 uploads_path = Path("uploads")
 uploads_path.mkdir(exist_ok=True)
