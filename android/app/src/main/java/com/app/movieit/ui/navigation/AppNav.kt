@@ -39,6 +39,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.app.movieit.ui.screen.AuthGateScreen
+import com.app.movieit.ui.screen.DiaryLogScreen
+import com.app.movieit.ui.screen.FollowListScreen
 import com.app.movieit.ui.screen.HomeScreen
 import com.app.movieit.ui.screen.LoginScreen
 import com.app.movieit.ui.screen.MovieDetailScreen
@@ -48,6 +50,7 @@ import com.app.movieit.ui.screen.MoviesScreen
 import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.ProfileScreen
 import com.app.movieit.ui.screen.RegisterScreen
+import com.app.movieit.ui.screen.UserProfileScreen
 import com.app.movieit.ui.screen.WatchlistScreen
 import com.app.movieit.ui.theme.AccentPurple
 import com.app.movieit.ui.theme.DeepBlack
@@ -61,7 +64,10 @@ private val bottomNavRoutes = setOf(
     Routes.WATCHLIST,
     Routes.DIARY,
     Routes.PROFILE,
-    Routes.MOVIE_DETAILS
+    Routes.MOVIE_DETAILS,
+    Routes.USER_PROFILE,
+    Routes.FOLLOW_LIST,
+    Routes.DIARY_LOG
 )
 
 @Composable
@@ -71,7 +77,10 @@ fun AppNav() {
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomNav = currentRoute in bottomNavRoutes ||
-            currentRoute?.startsWith("movie/") == true
+            currentRoute?.startsWith("movie/") == true ||
+            currentRoute?.startsWith("user_profile/") == true ||
+            currentRoute?.startsWith("follow_list/") == true ||
+            currentRoute?.startsWith("diary_log/") == true
 
     Scaffold(
         containerColor = DeepBlack,
@@ -175,7 +184,9 @@ fun AppNav() {
             composable(
                 route = Routes.MOVIE_DETAILS,
                 arguments = listOf(navArgument("movieId") { type = NavType.IntType })
-            ) {
+            ) { backStackEntry ->
+                val movieId = backStackEntry.arguments?.getInt("movieId") ?: return@composable
+                val refreshDiaryLog = backStackEntry.savedStateHandle.get<Boolean>("refresh_diary_log") ?: false
                 MovieDetailScreen(
                     onBack = {
                         val prev = navController.previousBackStackEntry
@@ -187,7 +198,68 @@ fun AppNav() {
                             Routes.DIARY -> prev.savedStateHandle["refresh_diary"] = true
                         }
                         navController.popBackStack()
+                    },
+                    onLogToDiary = { navController.navigate(Routes.diaryLog(movieId)) },
+                    refreshDiaryLog = refreshDiaryLog,
+                    onRefreshDiaryLogHandled = { backStackEntry.savedStateHandle["refresh_diary_log"] = false },
+                    onUserClick = { userId ->
+                        navController.navigate(Routes.userProfile(userId))
                     }
+                )
+            }
+
+            composable(
+                route = Routes.DIARY_LOG,
+                arguments = listOf(
+                    navArgument("movieId") { type = NavType.IntType },
+                    navArgument("entryId") { type = NavType.IntType }
+                )
+            ) {
+                DiaryLogScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = {
+                        val prev = navController.previousBackStackEntry
+                        when (prev?.destination?.route) {
+                            Routes.MOVIE_DETAILS -> prev.savedStateHandle["refresh_diary_log"] = true
+                            Routes.DIARY -> prev.savedStateHandle["refresh_diary"] = true
+                        }
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.USER_PROFILE,
+                arguments = listOf(navArgument("userId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_user_profile") ?: false
+                UserProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToFollowList = { uid, listType ->
+                        navController.navigate(Routes.followList(uid, listType))
+                    },
+                    shouldRefresh = shouldRefresh,
+                    onRefreshHandled = { backStackEntry.savedStateHandle["refresh_user_profile"] = false }
+                )
+            }
+
+            composable(
+                route = Routes.FOLLOW_LIST,
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.IntType },
+                    navArgument("listType") { type = NavType.StringType }
+                )
+            ) {
+                FollowListScreen(
+                    onBack = {
+                        val prev = navController.previousBackStackEntry
+                        when (prev?.destination?.route) {
+                            Routes.PROFILE -> prev.savedStateHandle["refresh_profile"] = true
+                            Routes.USER_PROFILE -> prev.savedStateHandle["refresh_user_profile"] = true
+                        }
+                        navController.popBackStack()
+                    },
+                    onUserClick = { userId -> navController.navigate(Routes.userProfile(userId)) }
                 )
             }
 
@@ -204,11 +276,17 @@ fun AppNav() {
                 )
             }
 
-            composable(Routes.DIARY) {
+            composable(Routes.DIARY) { backStackEntry ->
+                val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_diary") ?: false
                 MyDiaryScreen(
                     onMovieClick = { movieId ->
                         navController.navigate(Routes.movieDetails(movieId))
-                    }
+                    },
+                    onEditEntry = { entryId, movieId ->
+                        navController.navigate(Routes.diaryLogEdit(movieId, entryId))
+                    },
+                    shouldRefresh = shouldRefresh,
+                    onRefreshHandled = { backStackEntry.savedStateHandle["refresh_diary"] = false }
                 )
             }
 
@@ -222,6 +300,9 @@ fun AppNav() {
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToFollowList = { userId, listType ->
+                        navController.navigate(Routes.followList(userId, listType))
                     },
                     shouldRefresh = shouldRefresh,
                     onRefreshHandled = { backStackEntry.savedStateHandle["refresh_profile"] = false }

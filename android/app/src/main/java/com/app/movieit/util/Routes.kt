@@ -14,5 +14,12 @@ object Routes {
     const val PROFILE = "profile"
     const val MOVIE_PICKER = "movie_picker"
     const val MOVIEIT_LENS = "movieit_lens"
+    const val USER_PROFILE = "user_profile/{userId}"
+    const val FOLLOW_LIST = "follow_list/{userId}/{listType}"
+    const val DIARY_LOG = "diary_log/{movieId}/{entryId}"
     fun movieDetails(movieId: Int) = "movie/$movieId"
+    fun userProfile(userId: Int) = "user_profile/$userId"
+    fun followList(userId: Int, listType: String) = "follow_list/$userId/$listType"
+    fun diaryLog(movieId: Int) = "diary_log/$movieId/-1"
+    fun diaryLogEdit(movieId: Int, entryId: Int) = "diary_log/$movieId/$entryId"
 }

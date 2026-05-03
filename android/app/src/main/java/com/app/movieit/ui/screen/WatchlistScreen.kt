@@ -30,12 +30,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.app.movieit.data.model.WatchlistItemWithMovie
+import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.viewmodel.WatchlistViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,7 +61,13 @@ fun WatchlistScreen(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(title = { Text("My Watchlist") })
+            TopAppBar(title = {Text(
+                "My Watchlist",
+                color = TextPrimary,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.5).sp
+            ) })
         }
     ) { innerPadding ->
         when {

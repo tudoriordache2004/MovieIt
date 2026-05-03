@@ -4,6 +4,7 @@ from .genre import Genre
 from .review import Review
 from .watchlist import Watchlist
 from .diary_entry import DiaryEntry
+from .follow import Follow
 from app.models.movie_embedding import MovieEmbedding
 from app.models.movie_visual_embedding import MovieVisualEmbedding
 from app.models.movie_picker_session import MoviePickerSession
@@ -22,4 +23,5 @@ __all__ = [
     "MovieEmbedding",
     "MovieVisualEmbedding",
     "MoviePickerSession",
+    "Follow"
 ]

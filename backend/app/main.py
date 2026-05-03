@@ -1,20 +1,35 @@
 from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware #Android app
 from fastapi.staticfiles import StaticFiles
-from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens
 from app.services.spoiler_detector import get_classifier as get_spoiler_classifier
 from app.services.vulgarity_filter import get_classifier as get_vulgarity_classifier
-from app.services.recommendations import get_embedding_model
+from app.services.recommendations import get_embedding_model, get_sentiment_classifier
 from app.services.movie_picker import get_zero_shot_classifier
+from app.services.clip_lens import get_clip_model, get_clip_processor
+from app.routers import auth, movies, reviews, genres, watchlists, diary_entries, recommendations, movie_picker, lens, users
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Preloading ML models...")
     get_spoiler_classifier()
+    logger.info("  spoiler classifier ready")
     get_vulgarity_classifier()
+    logger.info("  vulgarity classifier ready")
+    get_sentiment_classifier()
+    logger.info("  sentiment classifier ready")
     get_embedding_model()
+    logger.info("  embedding model ready")
     get_zero_shot_classifier()
+    logger.info("  zero-shot classifier ready")
+    get_clip_model()
+    get_clip_processor()
+    logger.info("  CLIP model ready")
+    logger.info("All models loaded — server ready.")
     yield
 
 app = FastAPI(
@@ -42,6 +57,7 @@ app.include_router(diary_entries.router)
 app.include_router(recommendations.router)
 app.include_router(movie_picker.router)
 app.include_router(lens.router)
+app.include_router(users.router)
 
 uploads_path = Path("uploads")
 uploads_path.mkdir(exist_ok=True)
