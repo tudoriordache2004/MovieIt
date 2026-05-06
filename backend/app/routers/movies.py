@@ -19,6 +19,7 @@ def get_movies(
     genre_ids: Optional[List[int]] = Query(default=None, description="Filter by genre IDs (AND logic)"),
     decades: Optional[List[int]] = Query(default=None, description="Filter by decades e.g. 1990, 2000 (OR logic)"),
     min_rating: Optional[float] = Query(None, ge=0, le=10, description="Minimum average rating"),
+    director_id: Optional[int] = Query(None, description="Filter by director ID"),
     search: Optional[str] = Query(None, description="Search by title"),
     db: Session = Depends(get_db)
 ):
@@ -47,6 +48,11 @@ def get_movies(
 
     if min_rating is not None:
         query = query.filter(Movie.avg_rating >= min_rating)
+
+    if director_id is not None:
+        query = query.filter(
+            Movie.id.in_(select(MovieDirector.movie_id).where(MovieDirector.director_id == director_id))
+        )
 
     if search:
         query = query.filter(Movie.title.ilike(f"{search}%"))
