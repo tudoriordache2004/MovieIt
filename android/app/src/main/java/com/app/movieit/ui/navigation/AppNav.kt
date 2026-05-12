@@ -50,6 +50,7 @@ import com.app.movieit.ui.screen.MoviesScreen
 import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.ProfileScreen
 import com.app.movieit.ui.screen.RegisterScreen
+import com.app.movieit.ui.screen.DirectorProfileScreen
 import com.app.movieit.ui.screen.UserProfileScreen
 import com.app.movieit.ui.screen.WatchlistScreen
 import com.app.movieit.ui.theme.AccentPurple
@@ -80,7 +81,8 @@ fun AppNav() {
             currentRoute?.startsWith("movie/") == true ||
             currentRoute?.startsWith("user_profile/") == true ||
             currentRoute?.startsWith("follow_list/") == true ||
-            currentRoute?.startsWith("diary_log/") == true
+            currentRoute?.startsWith("diary_log/") == true ||
+            currentRoute?.startsWith("director/") == true
 
     Scaffold(
         containerColor = DeepBlack,
@@ -204,6 +206,9 @@ fun AppNav() {
                     onRefreshDiaryLogHandled = { backStackEntry.savedStateHandle["refresh_diary_log"] = false },
                     onUserClick = { userId ->
                         navController.navigate(Routes.userProfile(userId))
+                    },
+                    onDirectorClick = { directorId ->
+                        navController.navigate(Routes.directorProfile(directorId))
                     }
                 )
             }
@@ -240,6 +245,16 @@ fun AppNav() {
                     },
                     shouldRefresh = shouldRefresh,
                     onRefreshHandled = { backStackEntry.savedStateHandle["refresh_user_profile"] = false }
+                )
+            }
+
+            composable(
+                route = Routes.DIRECTOR_PROFILE,
+                arguments = listOf(navArgument("directorId") { type = NavType.IntType })
+            ) {
+                DirectorProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onMovieClick = { id -> navController.navigate(Routes.movieDetails(id)) }
                 )
             }
 

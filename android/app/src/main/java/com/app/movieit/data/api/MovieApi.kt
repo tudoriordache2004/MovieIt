@@ -15,6 +15,7 @@ interface MovieApi {
         @Query("genre_ids") genreIds: List<Int>? = null,
         @Query("decades") decades: List<Int>? = null,
         @Query("min_rating") minRating: Float? = null,
+        @Query("director_id") directorId: Int? = null,
         @Query("search") search: String? = null
     ): Response<List<Movie>>
 

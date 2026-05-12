@@ -25,11 +25,13 @@ import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -82,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.app.movieit.data.model.Director
 import com.app.movieit.data.model.Movie
 import com.app.movieit.ui.theme.*
 import com.app.movieit.ui.viewmodel.MoviesViewModel
@@ -310,7 +313,7 @@ fun MoviesScreen(
                     OutlinedTextField(
                         value = state.searchQuery,
                         onValueChange = { viewModel.setSearch(it) },
-                        placeholder = { Text("Search movies...", color = TextSecondary, fontSize = 14.sp) },
+                        placeholder = { Text("Search movies & directors...", color = TextSecondary, fontSize = 14.sp) },
                         leadingIcon = {
                             IconButton(onClick = {
                                 viewModel.submitSearchToGrid(state.searchQuery)
@@ -347,6 +350,16 @@ fun MoviesScreen(
                             unfocusedContainerColor = Color(0x0DFFFFFF)
                         ),
                         shape = RoundedCornerShape(16.dp)
+                    )
+                }
+
+                // ── Active director chip ────────────────────────────────────────
+                if (state.selectedDirectorId != null) {
+                    DirectorFilterChip(
+                        name = state.selectedDirectorName ?: "",
+                        avatarUrl = state.selectedDirectorAvatar,
+                        onClear = { viewModel.clearDirectorFilter() },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
 
@@ -527,12 +540,17 @@ fun MoviesScreen(
 
             // ── Search dropdown (floats over content) ──────────────────────────
             if (state.dropdownVisible) {
+                val suggestions = state.searchSuggestions
+                val hasDirectors = suggestions?.directors?.isNotEmpty() == true
+                val hasMovies = suggestions?.movies?.isNotEmpty() == true
+                val isEmpty = !state.searchLoading && suggestions != null && !hasDirectors && !hasMovies
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 72.dp)
                         .padding(horizontal = 16.dp)
-                        .heightIn(max = 300.dp),
+                        .heightIn(max = 360.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0F2E)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -545,7 +563,7 @@ fun MoviesScreen(
                             CircularProgressIndicator(color = AccentPurple, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                         }
 
-                        state.searchResults.isEmpty() -> Box(
+                        isEmpty -> Box(
                             Modifier.fillMaxWidth().padding(20.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -553,13 +571,34 @@ fun MoviesScreen(
                         }
 
                         else -> LazyColumn {
-                            itemsIndexed(state.searchResults) { index, movie ->
-                                SearchDropdownItem(movie = movie, onClick = {
-                                    viewModel.clearSearch()
-                                    onMovieClick(movie.id)
-                                })
-                                if (index < state.searchResults.lastIndex) {
-                                    Divider(color = BorderColor, thickness = 0.5.dp)
+                            // Directors section
+                            if (hasDirectors) {
+                                item {
+                                    DropdownSectionHeader("DIRECTORS")
+                                }
+                                itemsIndexed(suggestions!!.directors) { index, director ->
+                                    DirectorSuggestRow(director = director, onClick = {
+                                        viewModel.setDirectorFilter(director)
+                                        keyboardController?.hide()
+                                    })
+                                    if (index < suggestions.directors.lastIndex || hasMovies) {
+                                        Divider(color = BorderColor, thickness = 0.5.dp)
+                                    }
+                                }
+                            }
+                            // Movies section
+                            if (hasMovies) {
+                                item {
+                                    DropdownSectionHeader("MOVIES")
+                                }
+                                itemsIndexed(suggestions!!.movies) { index, movie ->
+                                    SearchDropdownItem(movie = movie, onClick = {
+                                        viewModel.clearSearch()
+                                        onMovieClick(movie.id)
+                                    })
+                                    if (index < suggestions.movies.lastIndex) {
+                                        Divider(color = BorderColor, thickness = 0.5.dp)
+                                    }
                                 }
                             }
                         }
@@ -567,6 +606,118 @@ fun MoviesScreen(
                 }
             }
         }
+    }
+}
+
+// ── Dropdown section header ────────────────────────────────────────────────────
+@Composable
+private fun DropdownSectionHeader(label: String) {
+    Text(
+        text = label,
+        color = GlowPurple,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 2.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
+}
+
+// ── Director suggestion row ────────────────────────────────────────────────────
+@Composable
+private fun DirectorSuggestRow(director: Director, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF2A2A2A)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!director.profileUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = director.profileUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = director.name,
+                color = AccentPurple,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text("Director", color = TextSecondary, fontSize = 11.sp)
+        }
+    }
+}
+
+// ── Active director filter chip ────────────────────────────────────────────────
+@Composable
+private fun DirectorFilterChip(
+    name: String,
+    avatarUrl: String?,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(AccentPurple.copy(alpha = 0.15f))
+            .border(1.dp, AccentPurple, RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(AccentPurple.copy(alpha = 0.3f)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null, tint = AccentPurple, modifier = Modifier.size(14.dp))
+            }
+        }
+        Text(
+            text = name,
+            color = AccentPurple,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = "Clear director filter",
+            tint = AccentPurple,
+            modifier = Modifier
+                .size(16.dp)
+                .clickable { onClear() }
+        )
     }
 }
 

@@ -3,9 +3,12 @@ package com.app.movieit.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.movieit.data.api.MovieApi
+import com.app.movieit.data.api.SearchApi
 import com.app.movieit.data.auth.SessionManager
+import com.app.movieit.data.model.Director
 import com.app.movieit.data.model.Genre
 import com.app.movieit.data.model.Movie
+import com.app.movieit.data.model.SuggestResponse
 import com.app.movieit.data.auth.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -25,11 +28,15 @@ data class MoviesUiState(
     val hasMore: Boolean = true,
     // search bar text + live dropdown
     val searchQuery: String = "",
-    val searchResults: List<Movie> = emptyList(),
+    val searchSuggestions: SuggestResponse? = null,
     val searchLoading: Boolean = false,
     val dropdownVisible: Boolean = false,
     // submitted search that filters the main grid
     val gridSearch: String? = null,
+    // active director filter (chip)
+    val selectedDirectorId: Int? = null,
+    val selectedDirectorName: String? = null,
+    val selectedDirectorAvatar: String? = null,
     // filters
     val genres: List<Genre> = emptyList(),
     val selectedGenreIds: Set<Int> = emptySet(),
@@ -40,6 +47,7 @@ data class MoviesUiState(
 @HiltViewModel
 class MoviesViewModel @Inject constructor(
     private val movieApi: MovieApi,
+    private val searchApi: SearchApi,
     private val tokenManager: TokenManager,
     private val sessionManager: SessionManager
 ) : ViewModel() {
@@ -77,6 +85,7 @@ class MoviesViewModel @Inject constructor(
                     genreIds = s.selectedGenreIds.toList().takeIf { it.isNotEmpty() },
                     decades = s.selectedDecades.toList().takeIf { it.isNotEmpty() },
                     minRating = s.minRating,
+                    directorId = s.selectedDirectorId,
                     search = s.gridSearch.takeIf { !it.isNullOrBlank() }
                 )
                 if (response.isSuccessful) {
@@ -145,20 +154,20 @@ class MoviesViewModel @Inject constructor(
         _uiState.update { it.copy(searchQuery = query, searchLoading = query.isNotBlank(), dropdownVisible = query.isNotBlank()) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            _uiState.update { it.copy(searchResults = emptyList(), searchLoading = false) }
+            _uiState.update { it.copy(searchSuggestions = null, searchLoading = false) }
             return
         }
         searchJob = viewModelScope.launch {
             delay(400)
             try {
-                val response = movieApi.getMovies(search = query, limit = 10)
+                val response = searchApi.suggest(query, limit = 5)
                 if (response.isSuccessful) {
-                    _uiState.update { it.copy(searchResults = response.body().orEmpty(), searchLoading = false) }
+                    _uiState.update { it.copy(searchSuggestions = response.body(), searchLoading = false) }
                 } else {
-                    _uiState.update { it.copy(searchResults = emptyList(), searchLoading = false) }
+                    _uiState.update { it.copy(searchSuggestions = null, searchLoading = false) }
                 }
             } catch (_: Exception) {
-                _uiState.update { it.copy(searchResults = emptyList(), searchLoading = false) }
+                _uiState.update { it.copy(searchSuggestions = null, searchLoading = false) }
             }
         }
     }
@@ -169,7 +178,7 @@ class MoviesViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 gridSearch = trimmed.takeIf { it.isNotBlank() },
-                searchResults = emptyList(),
+                searchSuggestions = null,
                 searchLoading = false,
                 dropdownVisible = false,
                 currentPage = 0
@@ -183,10 +192,40 @@ class MoviesViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 searchQuery = "",
-                searchResults = emptyList(),
+                searchSuggestions = null,
                 searchLoading = false,
                 dropdownVisible = false,
                 gridSearch = null,
+                currentPage = 0
+            )
+        }
+        loadMovies(0)
+    }
+
+    fun setDirectorFilter(director: Director) {
+        searchJob?.cancel()
+        _uiState.update {
+            it.copy(
+                selectedDirectorId = director.id,
+                selectedDirectorName = director.name,
+                selectedDirectorAvatar = director.profileUrl,
+                searchQuery = "",
+                searchSuggestions = null,
+                searchLoading = false,
+                dropdownVisible = false,
+                gridSearch = null,
+                currentPage = 0
+            )
+        }
+        loadMovies(0)
+    }
+
+    fun clearDirectorFilter() {
+        _uiState.update {
+            it.copy(
+                selectedDirectorId = null,
+                selectedDirectorName = null,
+                selectedDirectorAvatar = null,
                 currentPage = 0
             )
         }

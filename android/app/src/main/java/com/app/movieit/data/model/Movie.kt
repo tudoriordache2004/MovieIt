@@ -10,5 +10,7 @@ data class Movie(
     @SerializedName("release_date") val releaseDate: String?,   // îl ținem String pentru început
     @SerializedName("poster_url") val posterUrl: String?,
     @SerializedName("avg_rating") val avgRating: Float,
-    @SerializedName("created_at") val createdAt: String
+    @SerializedName("created_at") val createdAt: String,
+    val genres: List<Genre> = emptyList(),
+    val directors: List<Director> = emptyList(),
 )

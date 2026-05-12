@@ -63,9 +63,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -93,6 +91,7 @@ import java.util.Locale
 fun MovieDetailScreen(
     onBack: () -> Unit,
     onUserClick: (Int) -> Unit = {},
+    onDirectorClick: (Int) -> Unit = {},
     onLogToDiary: () -> Unit = {},
     refreshDiaryLog: Boolean = false,
     onRefreshDiaryLogHandled: () -> Unit = {},
@@ -188,7 +187,8 @@ fun MovieDetailScreen(
                             inWatchlist = state.inWatchlist,
                             watchlistBusy = state.watchlistBusy,
                             onToggleWatchlist = { viewModel.toggleWatchlist() },
-                            onLogToDiary = onLogToDiary
+                            onLogToDiary = onLogToDiary,
+                            onDirectorClick = onDirectorClick
                         )
                     }
 
@@ -284,7 +284,8 @@ private fun MovieHeaderSection(
     inWatchlist: Boolean?,
     watchlistBusy: Boolean,
     onToggleWatchlist: () -> Unit,
-    onLogToDiary: () -> Unit
+    onLogToDiary: () -> Unit,
+    onDirectorClick: (Int) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -345,6 +346,10 @@ private fun MovieHeaderSection(
 
             RatingChip(avgRating)
 
+            if (movie.directors.isNotEmpty()) {
+                DirectedByRow(directors = movie.directors, onDirectorClick = onDirectorClick)
+            }
+
             Spacer(Modifier.height(4.dp))
 
             // Watchlist button
@@ -404,6 +409,37 @@ private fun MovieHeaderSection(
                     maxLines = 1
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DirectedByRow(
+    directors: List<com.app.movieit.data.model.Director>,
+    onDirectorClick: (Int) -> Unit
+) {
+    // Each director name is its own clickable Text for independent tap zones
+    Row(
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Directed by ",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        directors.forEachIndexed { index, director ->
+            if (index > 0) {
+                Text(text = ", ", color = TextSecondary, fontSize = 12.sp)
+            }
+            Text(
+                text = director.name,
+                color = AccentPurple,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { onDirectorClick(director.id) }
+            )
         }
     }
 }
