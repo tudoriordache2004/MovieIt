@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.movieit.data.api.MovieApi
 import com.app.movieit.data.api.WatchlistApi
+import com.app.movieit.data.model.GenreMoviesSection
 import com.app.movieit.data.model.Movie
 import com.app.movieit.data.model.WatchlistCreate
+import com.app.movieit.data.model.SimilarMoviesResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import javax.inject.Inject
@@ -20,7 +22,9 @@ data class MovieDetailUiState(
     val error: String? = null,
     val movie: Movie? = null,
     val inWatchlist: Boolean? = null,
-    val watchlistBusy: Boolean = false
+    val watchlistBusy: Boolean = false,
+    val similarByDirector: List<Movie> = emptyList(),
+    val similarByGenre: List<GenreMoviesSection> = emptyList()
 )
 
 @HiltViewModel
@@ -58,6 +62,15 @@ class MovieDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { it.copy(loading = false, error = e.message) }
             }
+            try {
+                val similarResp = movieApi.getSimilarMovies(movieId)
+                if (similarResp.isSuccessful) {
+                    val body = similarResp.body() ?: SimilarMoviesResponse()
+                    _uiState.update {
+                        it.copy(similarByDirector = body.byDirector, similarByGenre = body.byGenre)
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 

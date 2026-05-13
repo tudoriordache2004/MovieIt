@@ -21,7 +21,13 @@ data class RegisterUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val registered: Boolean = false,
-)
+) {
+    val hasMinLength: Boolean get() = password.length >= 8
+    val hasUppercase: Boolean get() = password.any { it.isUpperCase() }
+    val hasLowercase: Boolean get() = password.any { it.isLowerCase() }
+    val hasDigit: Boolean get() = password.any { it.isDigit() }
+    val passwordValid: Boolean get() = hasMinLength && hasUppercase && hasLowercase && hasDigit
+}
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
@@ -46,12 +52,18 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun register() {
-        val email = uiState.value.email.trim()
-        val username = uiState.value.username.trim()
-        val password = uiState.value.password
+        val state = uiState.value
+        val email = state.email.trim()
+        val username = state.username.trim()
+        val password = state.password
 
         if (email.isBlank() || username.isBlank() || password.isBlank()) {
-            _uiState.update { it.copy(error = "Completează email, username și parola.") }
+            _uiState.update { it.copy(error = "Please fill in email, username and password.") }
+            return
+        }
+
+        if (!state.passwordValid) {
+            _uiState.update { it.copy(error = "Your password doesn't meet the requirements below.") }
             return
         }
 
@@ -63,18 +75,29 @@ class RegisterViewModel @Inject constructor(
                 )
 
                 if (!registerResp.isSuccessful) {
-                    _uiState.update {
-                        it.copy(loading = false, error = "Register eșuat: ${registerResp.code()}")
+                    val errorMsg = when (registerResp.code()) {
+                        400 -> {
+                            val body = registerResp.errorBody()?.string().orEmpty()
+                            when {
+                                body.contains("Email already registered", ignoreCase = true) ->
+                                    "That email is already in use."
+                                body.contains("Username already taken", ignoreCase = true) ->
+                                    "That username is already taken."
+                                else -> "Registration failed. Please try again."
+                            }
+                        }
+                        422 -> "Password doesn't meet the requirements."
+                        else -> "Registration failed. Please try again."
                     }
+                    _uiState.update { it.copy(loading = false, error = errorMsg) }
                     return@launch
                 }
 
-                // Auto-login după register
                 val loginResp = authApi.login(LoginRequest(username = username, password = password))
                 if (loginResp.isSuccessful) {
                     val token = loginResp.body()
                     if (token == null) {
-                        _uiState.update { it.copy(loading = false, error = "Răspuns invalid la login.") }
+                        _uiState.update { it.copy(loading = false, error = "Account created. Please log in.") }
                         return@launch
                     }
                     tokenManager.saveTokenAndUsername(token.accessToken, username)
@@ -91,18 +114,17 @@ class RegisterViewModel @Inject constructor(
                     }
                     _uiState.update { it.copy(loading = false, registered = true) }
                 } else {
-                    // cont creat, dar login a eșuat (poți naviga la Login)
                     _uiState.update {
                         it.copy(
                             loading = false,
-                            error = "Cont creat, dar auto-login a eșuat: ${loginResp.code()}",
+                            error = "Account created! Please log in to continue.",
                             registered = false
                         )
                     }
                 }
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(loading = false, error = e.message ?: "Eroare necunoscută.") }
+                _uiState.update { it.copy(loading = false, error = "Connection error. Check your internet and try again.") }
             }
         }
     }

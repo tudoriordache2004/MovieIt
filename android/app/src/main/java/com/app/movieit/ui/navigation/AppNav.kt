@@ -21,6 +21,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -45,8 +47,11 @@ import com.app.movieit.ui.screen.HomeScreen
 import com.app.movieit.ui.screen.LoginScreen
 import com.app.movieit.ui.screen.MovieDetailScreen
 import com.app.movieit.ui.screen.MovieItLensScreen
+import com.app.movieit.ui.screen.MoviePickerResultScreen
 import com.app.movieit.ui.screen.MoviePickerScreen
 import com.app.movieit.ui.screen.MoviesScreen
+import com.app.movieit.ui.viewmodel.MoviePickerViewModel
+import androidx.navigation.navigation
 import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.ProfileScreen
 import com.app.movieit.ui.screen.RegisterScreen
@@ -150,11 +155,32 @@ fun AppNav() {
                 )
             }
 
-            composable(Routes.MOVIE_PICKER) {
-                MoviePickerScreen(
-                    onBack = { navController.popBackStack() },
-                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) }
-                )
+            navigation(
+                route = Routes.MOVIE_PICKER,
+                startDestination = Routes.MOVIE_PICKER_WIZARD
+            ) {
+                composable(Routes.MOVIE_PICKER_WIZARD) { backStackEntry ->
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry(Routes.MOVIE_PICKER)
+                    }
+                    val sharedVm: MoviePickerViewModel = hiltViewModel(parentEntry)
+                    MoviePickerScreen(
+                        onBack = { navController.popBackStack(Routes.MOVIE_PICKER, inclusive = true) },
+                        onResultReady = { navController.navigate(Routes.MOVIE_PICKER_RESULT) },
+                        viewModel = sharedVm
+                    )
+                }
+                composable(Routes.MOVIE_PICKER_RESULT) { backStackEntry ->
+                    val parentEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry(Routes.MOVIE_PICKER)
+                    }
+                    val sharedVm: MoviePickerViewModel = hiltViewModel(parentEntry)
+                    MoviePickerResultScreen(
+                        onBack = { navController.popBackStack() },
+                        onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) },
+                        viewModel = sharedVm
+                    )
+                }
             }
 
             composable(Routes.MOVIEIT_LENS) {
@@ -201,6 +227,7 @@ fun AppNav() {
                         }
                         navController.popBackStack()
                     },
+                    onMovieClick = { id -> navController.navigate(Routes.movieDetails(id)) },
                     onLogToDiary = { navController.navigate(Routes.diaryLog(movieId)) },
                     refreshDiaryLog = refreshDiaryLog,
                     onRefreshDiaryLogHandled = { backStackEntry.savedStateHandle["refresh_diary_log"] = false },

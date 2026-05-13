@@ -40,3 +40,13 @@ class MovieOut(BaseModel):
                 "directors": getattr(obj, "director_list", None) or [],
             }
         return obj
+
+
+class GenreMoviesOut(BaseModel):
+    genre_name: str
+    movies: List[MovieOut] = []
+
+
+class SimilarMoviesOut(BaseModel):
+    by_director: List[MovieOut] = []
+    by_genre: List[GenreMoviesOut] = []

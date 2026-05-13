@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pathlib import Path
@@ -194,7 +195,7 @@ async def upload_profile_picture(
     if len(contents) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image must be under 5 MB")
 
-    dest.write_bytes(contents)
+    await asyncio.to_thread(dest.write_bytes, contents)
 
     current_user.profile_picture_url = f"/uploads/profile_pictures/{filename}"
     db.commit()

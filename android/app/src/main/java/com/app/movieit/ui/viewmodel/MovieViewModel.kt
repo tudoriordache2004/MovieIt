@@ -151,16 +151,16 @@ class MoviesViewModel @Inject constructor(
     }
 
     fun setSearch(query: String) {
-        _uiState.update { it.copy(searchQuery = query, searchLoading = query.isNotBlank(), dropdownVisible = query.isNotBlank()) }
+        _uiState.update { it.copy(searchQuery = query, searchSuggestions = null, searchLoading = query.isNotBlank(), dropdownVisible = query.isNotBlank()) }
         searchJob?.cancel()
         if (query.isBlank()) {
-            _uiState.update { it.copy(searchSuggestions = null, searchLoading = false) }
             return
         }
         searchJob = viewModelScope.launch {
             delay(400)
             try {
                 val response = searchApi.suggest(query, limit = 5)
+                if (_uiState.value.searchQuery != query) return@launch
                 if (response.isSuccessful) {
                     _uiState.update { it.copy(searchSuggestions = response.body(), searchLoading = false) }
                 } else {
@@ -196,6 +196,9 @@ class MoviesViewModel @Inject constructor(
                 searchLoading = false,
                 dropdownVisible = false,
                 gridSearch = null,
+                selectedDirectorId = null,
+                selectedDirectorName = null,
+                selectedDirectorAvatar = null,
                 currentPage = 0
             )
         }

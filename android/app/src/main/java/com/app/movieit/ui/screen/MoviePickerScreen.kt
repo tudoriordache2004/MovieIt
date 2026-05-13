@@ -1,5 +1,12 @@
 package com.app.movieit.ui.screen
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,10 +15,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,12 +24,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -44,20 +51,16 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import com.app.movieit.ui.theme.AccentPurple
 import com.app.movieit.ui.theme.BorderColor
 import com.app.movieit.ui.theme.DeepBlack
 import com.app.movieit.ui.theme.ErrorRed
 import com.app.movieit.ui.theme.GlowPurple
-import com.app.movieit.ui.theme.GoldAccent
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
 import com.app.movieit.ui.viewmodel.MoviePickerViewModel
@@ -80,15 +83,28 @@ private val MOODS = listOf(
 private val AVOID_SIGNALS = listOf("Horror", "War", "Violence", "Sad", "Dark")
 private val INTENSITIES = listOf("low" to "Low", "medium" to "Medium", "high" to "High")
 
+private val STEP_TITLES = listOf(
+    "How are you feeling?",
+    "Or describe it",
+    "Intensity",
+    "Anything to avoid?"
+)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MoviePickerScreen(
     onBack: () -> Unit,
-    onMovieClick: (Int) -> Unit,
-    viewModel: MoviePickerViewModel = hiltViewModel()
+    onResultReady: () -> Unit,
+    viewModel: MoviePickerViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    val scrollState = rememberScrollState()
+
+    LaunchedEffect(state.pendingResultNavigation) {
+        if (state.pendingResultNavigation) {
+            onResultReady()
+            viewModel.consumeResultNavigation()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -97,429 +113,429 @@ fun MoviePickerScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Top Bar ────────────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF110A22))
-                    .drawBehind {
-                        drawLine(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent
+            TopBar(onBack = onBack)
+
+            // ── Step Indicator ─────────────────────────────────────────────────
+            StepIndicator(
+                currentStep = state.currentStep,
+                maxVisitedStep = state.maxVisitedStep,
+                onStepClick = { viewModel.goToStep(it) }
+            )
+
+            // ── Heading ────────────────────────────────────────────────────────
+            Text(
+                text = STEP_TITLES[state.currentStep],
+                color = TextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.5).sp,
+                lineHeight = 28.sp,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+
+            // ── Body: animated step ────────────────────────────────────────────
+            Box(modifier = Modifier.weight(1f)) {
+                AnimatedContent(
+                    targetState = state.currentStep,
+                    transitionSpec = {
+                        val forward = targetState > initialState
+                        val enter = slideInHorizontally(
+                            animationSpec = tween(280),
+                            initialOffsetX = { if (forward) it else -it }
+                        ) + fadeIn(animationSpec = tween(280))
+                        val exit = slideOutHorizontally(
+                            animationSpec = tween(280),
+                            targetOffsetX = { if (forward) -it else it }
+                        ) + fadeOut(animationSpec = tween(280))
+                        enter togetherWith exit
+                    },
+                    label = "picker-step"
+                ) { step ->
+                    val scrollState = rememberScrollState()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        when (step) {
+                            0 -> MoodStep(state.selectedMood) { viewModel.selectMood(it) }
+                            1 -> DescribeStep(state.prompt) { viewModel.updatePrompt(it) }
+                            2 -> IntensityStep(state.intensity) { viewModel.selectIntensity(it) }
+                            3 -> AvoidStep(
+                                avoid = state.avoid,
+                                selectedMood = state.selectedMood,
+                                onToggle = { viewModel.toggleAvoid(it) }
+                            )
+                        }
+
+                        if (step == MoviePickerViewModel.TOTAL_STEPS - 1) {
+                            if (state.validationError != null) {
+                                Text(
+                                    text = state.validationError!!,
+                                    color = ErrorRed,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                            ),
-                            start = Offset(0f, size.height),
-                            end = Offset(size.width, size.height),
-                            strokeWidth = 1.5f
-                        )
+                            }
+                            if (state.error != null && !state.loading) {
+                                Text(
+                                    text = state.error!!,
+                                    color = ErrorRed,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            if (state.loading) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp)
+                                    Text(
+                                        text = "Finding something that fits your mood...",
+                                        color = TextSecondary,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = TextPrimary
-                        )
-                    }
-                    Text(
-                        text = "Pick for Tonight",
-                        color = TextPrimary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.5).sp
-                    )
                 }
             }
 
-            // ── Body ───────────────────────────────────────────────────────────
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Heading
-                Text(
-                    text = "What kind of movie do you need right now?",
-                    color = TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = (-0.5).sp,
-                    lineHeight = 28.sp
-                )
+            // ── Footer buttons ─────────────────────────────────────────────────
+            FooterButtons(
+                currentStep = state.currentStep,
+                canSubmit = state.canSubmit,
+                loading = state.loading,
+                onSkip = { viewModel.nextStep() },
+                onNext = { viewModel.nextStep() },
+                onBack = { viewModel.prevStep() },
+                onSubmit = { viewModel.findMovie() }
+            )
+        }
+    }
+}
 
-                // ── Mood chips ─────────────────────────────────────────────────
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("How are you feeling?")
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        MOODS.forEach { (value, label) ->
-                            PickerChip(
-                                label = label,
-                                selected = state.selectedMood == value,
-                                onClick = { viewModel.selectMood(value) }
-                            )
-                        }
-                    }
-                }
+// ───────────────────────────────────────────────────────────────────────────
+// Step composables
+// ───────────────────────────────────────────────────────────────────────────
 
-                // ── Prompt input ───────────────────────────────────────────────
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("Or describe it")
-                    OutlinedTextField(
-                        value = state.prompt,
-                        onValueChange = { viewModel.updatePrompt(it) },
-                        placeholder = {
-                            Text(
-                                "Tell us what kind of movie you need tonight...",
-                                color = TextSecondary,
-                                fontSize = 14.sp
-                            )
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AccentPurple,
-                            unfocusedBorderColor = BorderColor,
-                            focusedContainerColor = Color(0x1AAB6DFF),
-                            unfocusedContainerColor = Color(0x0DFFFFFF),
-                            cursorColor = GlowPurple,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
-                    )
-                }
-
-                // ── Intensity ──────────────────────────────────────────────────
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("Intensity")
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(20.dp)),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        INTENSITIES.forEach { (value, label) ->
-                            val selected = state.intensity == value
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(if (selected) AccentPurple else Color.Transparent)
-                                    .clickable { viewModel.selectIntensity(value) }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (selected) TextPrimary else TextSecondary,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ── Avoid chips ────────────────────────────────────────────────
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("Avoid")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val blockedAvoids = MoviePickerViewModel.blockedAvoidSignalsForMood(state.selectedMood)
-                        AVOID_SIGNALS.forEach { signal ->
-                            val signalValue = signal.lowercase()
-                            val enabled = signalValue !in blockedAvoids
-                            PickerChip(
-                                label = signal,
-                                selected = signalValue in state.avoid,
-                                enabled = enabled,
-                                onClick = { viewModel.toggleAvoid(signalValue) }
-                            )
-                        }
-                    }
-                }
-
-                // ── Validation error ───────────────────────────────────────────
-                if (state.validationError != null) {
-                    Text(
-                        text = state.validationError!!,
-                        color = ErrorRed,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // ── CTA Button ─────────────────────────────────────────────────
-                Button(
-                    onClick = { viewModel.findMovie() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                    enabled = !state.loading
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Find my movie",
-                        color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // ── Loading ────────────────────────────────────────────────────
-                if (state.loading) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(color = AccentPurple, strokeWidth = 3.dp)
-                        Text(
-                            text = "Finding something that fits your mood...",
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // ── Error (no result yet) ──────────────────────────────────────
-                if (state.error != null && !state.loading && state.result == null) {
-                    Text(
-                        text = state.error!!,
-                        color = ErrorRed,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // ── Result Card ────────────────────────────────────────────────
-                if (state.result != null && !state.loading) {
-                    // Gradient divider
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent)
-                                )
-                            )
-                    )
-
-                    val pick = state.result!!
-
-                    // Error inline with result (Another pick error)
-                    if (state.error != null) {
-                        Text(
-                            text = state.error!!,
-                            color = TextSecondary,
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF14142A))
-                    ) {
-                        // ── Header row: poster (left) + info (right) ──────────
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            // Poster — same style as MovieDetailScreen
-                            Box(
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .aspectRatio(2f / 3f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color(0x33AB6DFF), RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1E1E2A))
-                            ) {
-                                AsyncImage(
-                                    model = pick.movie.posterUrl,
-                                    contentDescription = "${pick.movie.title} poster",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                                // Subtle bottom gradient
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colorStops = arrayOf(
-                                                    0f to Color.Transparent,
-                                                    0.7f to Color.Transparent,
-                                                    1f to Color(0x80070711)
-                                                )
-                                            )
-                                        )
-                                )
-                            }
-
-                            // Info column (right)
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Year chip
-                                val year = pick.movie.releaseDate?.take(4).orEmpty()
-                                if (year.isNotBlank()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(AccentPurple.copy(alpha = 0.18f))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Text(year, color = GlowPurple, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-
-                                Text(
-                                    text = pick.movie.title,
-                                    color = TextPrimary,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = (-0.3).sp,
-                                    lineHeight = 22.sp,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                // Rating chip
-                                if (pick.movie.avgRating > 0f) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(13.dp))
-                                        Text("%.1f".format(pick.movie.avgRating), color = GoldAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                // Genre chips
-                                if (pick.matchedGenres.isNotEmpty()) {
-                                    androidx.compose.foundation.layout.FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        pick.matchedGenres.forEach { genre ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(20.dp))
-                                                    .background(AccentPurple.copy(alpha = 0.2f))
-                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                                            ) {
-                                                Text(genre, color = GlowPurple, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Reason text ────────────────────────────────────────
-                        if (pick.reason.isNotBlank()) {
-                            Text(
-                                text = pick.reason,
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp,
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 14.dp)
-                            )
-                        }
-
-                        // Avoided signals (subtle)
-                        if (pick.avoidedSignals.isNotEmpty()) {
-                            Text(
-                                text = "Avoided: ${pick.avoidedSignals.joinToString(", ")}",
-                                color = TextSecondary.copy(alpha = 0.5f),
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(horizontal = 14.dp)
-                            )
-                        }
-
-                        // ── Action buttons ─────────────────────────────────────
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { onMovieClick(pick.movie.id) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentPurple),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentPurple)
-                            ) {
-                                Text("View details", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                            Button(
-                                onClick = { viewModel.anotherPick() },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
-                                enabled = pick.hasMore
-                            ) {
-                                Text(
-                                    text = if (pick.hasMore) "Another pick" else "No more picks",
-                                    color = TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MoodStep(selectedMood: String?, onSelect: (String) -> Unit) {
+    Text(
+        text = "Pick the vibe — or skip if you'd rather describe it.",
+        color = TextSecondary,
+        fontSize = 13.sp,
+        lineHeight = 18.sp
+    )
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MOODS.forEach { (value, label) ->
+            PickerChip(
+                label = label,
+                selected = selectedMood == value,
+                onClick = { onSelect(value) }
+            )
         }
     }
 }
 
 @Composable
-private fun SectionLabel(text: String) {
+private fun DescribeStep(prompt: String, onChange: (String) -> Unit) {
     Text(
-        text = text,
+        text = "Tell us in your own words what you need tonight. Skip if a mood is enough.",
         color = TextSecondary,
         fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        letterSpacing = 0.5.sp
+        lineHeight = 18.sp
     )
+    OutlinedTextField(
+        value = prompt,
+        onValueChange = onChange,
+        placeholder = {
+            Text(
+                "e.g. a slow-burn thriller with a smart twist",
+                color = TextSecondary,
+                fontSize = 14.sp
+            )
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AccentPurple,
+            unfocusedBorderColor = BorderColor,
+            focusedContainerColor = Color(0x1AAB6DFF),
+            unfocusedContainerColor = Color(0x0DFFFFFF),
+            cursorColor = GlowPurple,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary
+        ),
+        textStyle = TextStyle(fontSize = 14.sp)
+    )
+}
+
+@Composable
+private fun IntensityStep(intensity: String, onSelect: (String) -> Unit) {
+    Text(
+        text = "How intense should it feel?",
+        color = TextSecondary,
+        fontSize = 13.sp,
+        lineHeight = 18.sp
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .border(1.dp, BorderColor, RoundedCornerShape(20.dp)),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        INTENSITIES.forEach { (value, label) ->
+            val selected = intensity == value
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (selected) AccentPurple else Color.Transparent)
+                    .clickable { onSelect(value) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    color = if (selected) TextPrimary else TextSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AvoidStep(
+    avoid: Set<String>,
+    selectedMood: String?,
+    onToggle: (String) -> Unit
+) {
+    Text(
+        text = "Anything you'd rather not see tonight?",
+        color = TextSecondary,
+        fontSize = 13.sp,
+        lineHeight = 18.sp
+    )
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val blockedAvoids = MoviePickerViewModel.blockedAvoidSignalsForMood(selectedMood)
+        AVOID_SIGNALS.forEach { signal ->
+            val signalValue = signal.lowercase()
+            val enabled = signalValue !in blockedAvoids
+            PickerChip(
+                label = signal,
+                selected = signalValue in avoid,
+                enabled = enabled,
+                onClick = { onToggle(signalValue) }
+            )
+        }
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Chrome
+// ───────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun TopBar(onBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF110A22))
+            .statusBarsPadding()
+            .drawBehind {
+                drawLine(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent
+                        )
+                    ),
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 1.5f
+                )
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary
+                )
+            }
+            Text(
+                text = "Pick for Tonight",
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = (-0.5).sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepIndicator(
+    currentStep: Int,
+    maxVisitedStep: Int,
+    onStepClick: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(MoviePickerViewModel.TOTAL_STEPS) { index ->
+            val isCurrent = index == currentStep
+            val isVisited = index <= maxVisitedStep
+            val pillColor = when {
+                isCurrent -> AccentPurple
+                isVisited -> AccentPurple.copy(alpha = 0.4f)
+                else -> BorderColor
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(if (isCurrent) 6.dp else 4.dp)
+                    .clip(CircleShape)
+                    .background(pillColor)
+                    .clickable(enabled = isVisited) { onStepClick(index) }
+            )
+        }
+    }
+    Text(
+        text = "Step ${currentStep + 1} of ${MoviePickerViewModel.TOTAL_STEPS}",
+        color = TextSecondary,
+        fontSize = 11.sp,
+        letterSpacing = 1.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 20.dp)
+    )
+}
+
+@Composable
+private fun FooterButtons(
+    currentStep: Int,
+    canSubmit: Boolean,
+    loading: Boolean,
+    onSkip: () -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    val isLastStep = currentStep == MoviePickerViewModel.TOTAL_STEPS - 1
+    val isOptionalStep = currentStep == 0 || currentStep == 1
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Back button (when not on first step)
+        if (currentStep > 0) {
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentPurple),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentPurple)
+            ) {
+                Text("Back", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        // Skip button (only on optional steps)
+        if (isOptionalStep) {
+            OutlinedButton(
+                onClick = onSkip,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Text("Skip", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        // Primary action: Next or Submit
+        if (isLastStep) {
+            Button(
+                onClick = onSubmit,
+                modifier = Modifier
+                    .weight(1.4f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                enabled = !loading && canSubmit
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Find my movie",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+            ) {
+                Text(
+                    text = "Next",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -549,7 +565,7 @@ private fun PickerChip(
                 RoundedCornerShape(20.dp)
             )
             .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = label,
@@ -558,7 +574,7 @@ private fun PickerChip(
                 selected -> TextPrimary
                 else -> TextSecondary
             },
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }

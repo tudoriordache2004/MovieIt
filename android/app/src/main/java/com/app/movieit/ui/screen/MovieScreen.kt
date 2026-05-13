@@ -815,7 +815,7 @@ private fun SearchDropdownItem(movie: Movie, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             val year = movie.releaseDate?.take(4) ?: ""
-            val rating = if (movie.avgRating > 0f) "⭐ %.1f".format(movie.avgRating) else ""
+            val rating = if (movie.avgRating > 0f) "⭐ %.1f".format(movie.avgRating / 2f) else ""
             val meta = listOf(year, rating).filter { it.isNotBlank() }.joinToString(" · ")
             if (meta.isNotBlank()) {
                 Text(text = meta, color = TextSecondary, fontSize = 11.sp)
@@ -827,7 +827,7 @@ private fun SearchDropdownItem(movie: Movie, onClick: () -> Unit) {
 // ── Movie grid item ────────────────────────────────────────────────────────────
 @Composable
 private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
-    val rating = String.format(Locale.US, "%.1f", movie.avgRating)
+    val rating = String.format(Locale.US, "%.1f", movie.avgRating / 2f)
     val year = movie.releaseDate?.take(4) ?: ""
 
     Column(
@@ -870,6 +870,7 @@ private fun MovieGridItem(movie: Movie, onClick: () -> Unit) {
                 color = TextPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
+                minLines = 2,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,

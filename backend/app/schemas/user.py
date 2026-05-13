@@ -1,10 +1,23 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime
+import re
+
+_PASSWORD_REGEX = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$')
 
 class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
+
+    @field_validator('password')
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not _PASSWORD_REGEX.match(v):
+            raise ValueError(
+                'Password must be at least 8 characters and include '
+                'an uppercase letter, a lowercase letter, and a number.'
+            )
+        return v
 
 class UserOut(BaseModel):
     id: int

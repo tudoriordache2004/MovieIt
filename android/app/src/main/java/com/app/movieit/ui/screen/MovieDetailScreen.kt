@@ -18,7 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -57,7 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -73,7 +76,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.app.movieit.data.model.GenreMoviesSection
+import com.app.movieit.data.model.Movie
 import com.app.movieit.data.model.ReviewOut
+import com.app.movieit.ui.components.MoviePosterCard
 import com.app.movieit.ui.theme.AccentPurple
 import com.app.movieit.ui.theme.BorderColor
 import com.app.movieit.ui.theme.DeepBlack
@@ -90,6 +96,7 @@ import java.util.Locale
 @Composable
 fun MovieDetailScreen(
     onBack: () -> Unit,
+    onMovieClick: (Int) -> Unit = {},
     onUserClick: (Int) -> Unit = {},
     onDirectorClick: (Int) -> Unit = {},
     onLogToDiary: () -> Unit = {},
@@ -169,7 +176,7 @@ fun MovieDetailScreen(
             state.movie != null -> {
                 val m = state.movie!!
                 val year = m.releaseDate?.take(4) ?: ""
-                val avgRating = String.format(Locale.US, "%.1f", m.avgRating)
+                val avgRating = String.format(Locale.US, "%.1f", m.avgRating / 2f)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -198,6 +205,11 @@ fun MovieDetailScreen(
                         item { SynopsisSection(description = desc) }
                     }
 
+                    // Genres
+                    if (m.genres.isNotEmpty()) {
+                        item { GenresSection(genres = m.genres.map { it.name }) }
+                    }
+
                     // Reviews
                     item {
                         ReviewsSection(
@@ -217,6 +229,17 @@ fun MovieDetailScreen(
                             onModerateDeleteReview = { reviewsVm.onModerateDeleteReview(it) },
                             onUserClick = onUserClick
                         )
+                    }
+
+                    // Similar movies
+                    if (state.similarByDirector.isNotEmpty() || state.similarByGenre.isNotEmpty()) {
+                        item {
+                            SimilarMoviesSection(
+                                byDirector = state.similarByDirector,
+                                byGenreSections = state.similarByGenre,
+                                onMovieClick = onMovieClick
+                            )
+                        }
                     }
                 }
             }
@@ -246,30 +269,24 @@ private fun DetailTopBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xB3070711))
-            .drawBehind {
-                drawLine(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent
-                        )
-                    ),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.5f
+            .statusBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.50f))
+                .align(Alignment.CenterStart)
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.matchParentSize()) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            .statusBarsPadding()
-    ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = TextPrimary
-            )
         }
     }
 }
@@ -418,28 +435,32 @@ private fun DirectedByRow(
     directors: List<com.app.movieit.data.model.Director>,
     onDirectorClick: (Int) -> Unit
 ) {
-    // Each director name is its own clickable Text for independent tap zones
-    Row(
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
-            text = "Directed by ",
+            text = "Directed by",
             color = TextSecondary,
             fontSize = 12.sp
         )
-        directors.forEachIndexed { index, director ->
-            if (index > 0) {
-                Text(text = ", ", color = TextSecondary, fontSize = 12.sp)
+        Row(
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            directors.forEachIndexed { index, director ->
+                if (index > 0) {
+                    Text(text = ", ", color = TextSecondary, fontSize = 12.sp)
+                }
+                Text(
+                    text = director.name,
+                    color = AccentPurple,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { onDirectorClick(director.id) }
+                )
             }
-            Text(
-                text = director.name,
-                color = AccentPurple,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onDirectorClick(director.id) }
-            )
         }
     }
 }
@@ -985,47 +1006,136 @@ fun StarRatingInput(
     onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        for (star in 1..5) {
-            val full = rating >= star * 2
-            val half = rating == star * 2 - 1
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (star in 1..5) {
+                val full = rating >= star * 2
+                val half = rating == star * 2 - 1
 
-            Box(modifier = Modifier.size(32.dp)) {
-                Icon(
-                    imageVector = when {
-                        full -> Icons.Filled.Star
-                        half -> Icons.AutoMirrored.Filled.StarHalf
-                        else -> Icons.Outlined.StarOutline
-                    },
-                    contentDescription = "$star stars",
-                    tint = if (full || half) GoldAccent else TextSecondary.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxSize()
-                )
-                // Left half → half star
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(0.5f)
-                        .align(Alignment.CenterStart)
-                        .clickable { onRatingChange(star * 2 - 1) }
-                )
-                // Right half → full star
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(0.5f)
-                        .align(Alignment.CenterEnd)
-                        .clickable { onRatingChange(star * 2) }
-                )
+                Box(modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = when {
+                            full -> Icons.Filled.Star
+                            half -> Icons.AutoMirrored.Filled.StarHalf
+                            else -> Icons.Outlined.StarOutline
+                        },
+                        contentDescription = "$star stars",
+                        tint = if (full || half) GoldAccent else TextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Left half → half star
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.5f)
+                            .align(Alignment.CenterStart)
+                            .clickable { onRatingChange(star * 2 - 1) }
+                    )
+                    // Right half → full star
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.5f)
+                            .align(Alignment.CenterEnd)
+                            .clickable { onRatingChange(star * 2) }
+                    )
+                }
             }
         }
-
-        Spacer(Modifier.width(6.dp))
         if (rating > 0) {
             Text(
                 text = "${rating / 2}.${if (rating % 2 == 1) "5" else "0"} / 5",
                 color = TextSecondary,
-                fontSize = 13.sp,
-                modifier = Modifier.align(Alignment.CenterVertically)
+                fontSize = 13.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun SimilarMoviesSection(
+    byDirector: List<Movie>,
+    byGenreSections: List<GenreMoviesSection>,
+    onMovieClick: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (byDirector.isNotEmpty()) {
+            SimilarRow(title = "MORE FROM THIS DIRECTOR", movies = byDirector, onMovieClick = onMovieClick)
+        }
+        byGenreSections.forEach { section ->
+            SimilarRow(
+                title = "MORE IN ${section.genreName.uppercase()}",
+                movies = section.movies,
+                onMovieClick = onMovieClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun SimilarRow(title: String, movies: List<Movie>, onMovieClick: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            color = GlowPurple,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            lazyItems(movies) { movie ->
+                MoviePosterCard(
+                    movie = movie,
+                    onClick = { onMovieClick(movie.id) },
+                    modifier = Modifier.width(110.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GenresSection(genres: List<String>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            "GENRES",
+            color = GlowPurple,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            genres.forEach { genre ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AccentPurple.copy(alpha = 0.18f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = genre,
+                        color = GlowPurple,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.app.movieit.data.api
 
 import com.app.movieit.data.model.Genre
 import com.app.movieit.data.model.Movie
+import com.app.movieit.data.model.SimilarMoviesResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -21,6 +22,12 @@ interface MovieApi {
 
     @GET("movies/{movie_id}")
     suspend fun getMovieById(@Path("movie_id") movieId: Int): Response<Movie>
+
+    @GET("movies/{movie_id}/similar")
+    suspend fun getSimilarMovies(
+        @Path("movie_id") movieId: Int,
+        @Query("limit") limit: Int = 10
+    ): Response<SimilarMoviesResponse>
 
     @GET("genres/")
     suspend fun getGenres(): Response<List<Genre>>

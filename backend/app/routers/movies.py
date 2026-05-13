@@ -5,7 +5,7 @@ from sqlalchemy import func, select, or_, and_
 from app.database import get_db
 from app.models.movie import Movie
 from app.models.genre import Genre, MovieGenre
-from app.schemas.movie import MovieOut, MovieImport
+from app.schemas.movie import MovieOut, MovieImport, SimilarMoviesOut, GenreMoviesOut
 from app.models.director import Director, MovieDirector
 from app.services.tmdb import tmdb_service
 
@@ -65,6 +65,62 @@ def get_movies(
         Movie.avg_rating.desc()
     ).offset(skip).limit(limit).all()
     return movies
+
+@router.get("/{movie_id}/similar", response_model=SimilarMoviesOut)
+def get_similar_movies(
+    movie_id: int,
+    limit: int = Query(10, ge=1, le=20),
+    db: Session = Depends(get_db)
+):
+    movie = db.query(Movie).options(
+        joinedload(Movie.director_list),
+        joinedload(Movie.genre_list),
+    ).filter(Movie.id == movie_id).first()
+    if not movie:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Movie {movie_id} not found")
+
+    director_ids = [d.id for d in movie.director_list]
+    genres = [(g.id, g.name) for g in movie.genre_list]
+
+    by_director: list[Movie] = []
+    if director_ids:
+        by_director = (
+            db.query(Movie)
+            .options(joinedload(Movie.genre_list), joinedload(Movie.director_list))
+            .filter(
+                Movie.id != movie_id,
+                Movie.id.in_(
+                    select(MovieDirector.movie_id).where(MovieDirector.director_id.in_(director_ids))
+                ),
+            )
+            .order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc())
+            .limit(limit)
+            .all()
+        )
+
+    by_director_ids = {m.id for m in by_director}
+    exclude_ids = by_director_ids | {movie_id}
+
+    by_genre: list[GenreMoviesOut] = []
+    for genre_id, genre_name in genres:
+        genre_q = (
+            db.query(Movie)
+            .options(joinedload(Movie.genre_list), joinedload(Movie.director_list))
+            .filter(
+                Movie.id.notin_(exclude_ids),
+                Movie.id.in_(
+                    select(MovieGenre.movie_id).where(MovieGenre.genre_id == genre_id)
+                ),
+            )
+            .order_by(Movie.popularity.desc().nullslast(), Movie.avg_rating.desc())
+            .limit(limit)
+            .all()
+        )
+        if len(genre_q) >= 3:
+            by_genre.append(GenreMoviesOut(genre_name=genre_name, movies=genre_q))
+
+    return SimilarMoviesOut(by_director=by_director, by_genre=by_genre)
+
 
 @router.get("/{movie_id}", response_model=MovieOut)
 def get_movie_by_id(movie_id: int, db: Session = Depends(get_db)):

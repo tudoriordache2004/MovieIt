@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -166,6 +168,20 @@ fun RegisterScreen(
             shape = RoundedCornerShape(14.dp)
         )
 
+        // ── Password checklist ────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = state.password.isNotBlank(),
+            enter = fadeIn() + slideInVertically()
+        ) {
+            PasswordChecklist(
+                hasMinLength = state.hasMinLength,
+                hasUppercase = state.hasUppercase,
+                hasLowercase = state.hasLowercase,
+                hasDigit = state.hasDigit,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
         // ── Error ─────────────────────────────────────────────────────────────
         AnimatedVisibility(
             visible = state.error != null,
@@ -190,7 +206,7 @@ fun RegisterScreen(
         // ── Register button ──────────────────────────────────────────────────
         Button(
             onClick = viewModel::register,
-            enabled = !state.loading,
+            enabled = !state.loading && (state.password.isBlank() || state.passwordValid),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
@@ -244,5 +260,43 @@ fun RegisterScreen(
                 color = SoftLavender
             )
         }
+    }
+}
+
+@Composable
+private fun PasswordChecklist(
+    hasMinLength: Boolean,
+    hasUppercase: Boolean,
+    hasLowercase: Boolean,
+    hasDigit: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val metColor = Color(0xFF4CAF50)
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        PasswordRule(met = hasMinLength, label = "At least 8 characters", metColor = metColor)
+        PasswordRule(met = hasUppercase, label = "One uppercase letter", metColor = metColor)
+        PasswordRule(met = hasLowercase, label = "One lowercase letter", metColor = metColor)
+        PasswordRule(met = hasDigit, label = "One number", metColor = metColor)
+    }
+}
+
+@Composable
+private fun PasswordRule(met: Boolean, label: String, metColor: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = if (met) Icons.Default.Check else Icons.Default.Close,
+            contentDescription = null,
+            tint = if (met) metColor else TextSecondary.copy(alpha = 0.6f),
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = label,
+            color = if (met) metColor else TextSecondary.copy(alpha = 0.6f),
+            fontSize = 12.sp
+        )
     }
 }

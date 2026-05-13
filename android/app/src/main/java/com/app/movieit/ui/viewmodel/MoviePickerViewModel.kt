@@ -20,8 +20,14 @@ data class MoviePickerUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val validationError: String? = null,
-    val result: MoviePickerResponse? = null
-)
+    val result: MoviePickerResponse? = null,
+    val currentStep: Int = 0,
+    val maxVisitedStep: Int = 0,
+    val pendingResultNavigation: Boolean = false
+) {
+    val canSubmit: Boolean
+        get() = selectedMood != null || prompt.isNotBlank()
+}
 
 @HiltViewModel
 class MoviePickerViewModel @Inject constructor(
@@ -29,6 +35,8 @@ class MoviePickerViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
+        const val TOTAL_STEPS = 4
+
         private val moodBlockedAvoidSignals = mapOf(
             "dark" to setOf("dark"),
             "melancholic" to setOf("sad"),
@@ -89,7 +97,9 @@ class MoviePickerViewModel @Inject constructor(
                 )
                 val resp = moviePickerApi.createSession(request)
                 if (resp.isSuccessful) {
-                    _uiState.update { it.copy(loading = false, result = resp.body()) }
+                    _uiState.update {
+                        it.copy(loading = false, result = resp.body(), pendingResultNavigation = true)
+                    }
                 } else {
                     _uiState.update { it.copy(loading = false, error = "Couldn't find a match. Try a different mood.") }
                 }
@@ -124,4 +134,30 @@ class MoviePickerViewModel @Inject constructor(
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
+
+    fun nextStep() {
+        _uiState.update {
+            val next = (it.currentStep + 1).coerceAtMost(TOTAL_STEPS - 1)
+            it.copy(currentStep = next, maxVisitedStep = maxOf(it.maxVisitedStep, next))
+        }
+    }
+
+    fun prevStep() {
+        _uiState.update {
+            val prev = (it.currentStep - 1).coerceAtLeast(0)
+            it.copy(currentStep = prev)
+        }
+    }
+
+    fun goToStep(step: Int) {
+        _uiState.update {
+            if (step < 0 || step > it.maxVisitedStep) return@update it
+            it.copy(currentStep = step)
+        }
+    }
+
+    fun consumeResultNavigation() {
+        _uiState.update { it.copy(pendingResultNavigation = false) }
+    }
+
 }

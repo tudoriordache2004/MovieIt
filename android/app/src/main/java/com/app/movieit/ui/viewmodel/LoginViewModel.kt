@@ -73,16 +73,15 @@ class LoginViewModel @Inject constructor(
                     }
                     _uiState.update { it.copy(loading = false, loggedIn = true) }
                 } else {
-                    _uiState.update {
-                        it.copy(
-                            loading = false,
-                            error = "Login failed: ${response.code()}"
-                        )
+                    val errorMsg = when (response.code()) {
+                        400, 401, 403 -> "Invalid credentials."
+                        else -> "Something went wrong. Please try again."
                     }
+                    _uiState.update { it.copy(loading = false, error = errorMsg) }
                 }
 
             } catch (e: Exception) {
-                _uiState.update { it.copy(loading = false, error = e.message ?: "Unknown error.") }
+                _uiState.update { it.copy(loading = false, error = "Connection error. Check your internet and try again.") }
             }
         }
     }

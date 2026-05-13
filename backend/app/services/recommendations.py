@@ -15,6 +15,10 @@ from app.models.review import Review
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 SENTIMENT_MODEL = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 
+# Fraction of a review's vector contributed by the embedded review text vs the movie embedding.
+# Higher = user's written reaction steers the profile more; lower = movie content dominates.
+REVIEW_TEXT_BLEND = 0.35
+
 GENRE_MOOD_MAP = {
     "Action": "energetic",
     "Adventure": "escapist",
@@ -137,6 +141,16 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
     strongest_sentiment = "neutral"
 
     for review in reviews:
+        movie_embedding = (
+            db.query(MovieEmbedding)
+            .filter(MovieEmbedding.movie_id == review.movie_id)
+            .first()
+        )
+        if not movie_embedding:
+            continue
+
+        movie_vec = np.array(movie_embedding.embedding, dtype=np.float32)
+
         if review.comment and review.comment.strip():
             sentiment, sentiment_score = classify_sentiment(review.comment)
 
@@ -148,31 +162,21 @@ def build_user_profile_vector(db: Session, user_id: int, min_rating: int = 8) ->
             else:
                 sentiment_weight = 1.0
 
-            movie_embedding = (
-                db.query(MovieEmbedding)
-                .filter(MovieEmbedding.movie_id == review.movie_id)
-                .first()
-            )
-
-            if not movie_embedding:
-                continue
-
-            vector = movie_embedding.embedding
-            rating_weight = review.rating / 10.0
-            weight = rating_weight * sentiment_weight
-
-            weighted_vectors.append(np.array(vector, dtype=np.float32) * weight)
-            weights.append(weight)
+            # Blend the movie embedding with the embedded review text so that
+            # what the user wrote about the film shifts the profile toward the
+            # specific themes they responded to, not just the movie's full content.
+            review_vec = np.array(embed_text(review.comment), dtype=np.float32)
+            blended = (1.0 - REVIEW_TEXT_BLEND) * movie_vec + REVIEW_TEXT_BLEND * review_vec
+            norm = np.linalg.norm(blended)
+            vector = blended / norm if norm > 0 else movie_vec
         else:
-            movie_embedding = (
-                db.query(MovieEmbedding)
-                .filter(MovieEmbedding.movie_id == review.movie_id)
-                .first()
-            )
-            if movie_embedding:
-                weight = review.rating / 10.0
-                weighted_vectors.append(np.array(movie_embedding.embedding, dtype=np.float32) * weight)
-                weights.append(weight)
+            sentiment_weight = 1.0
+            vector = movie_vec
+
+        rating_weight = review.rating / 10.0
+        weight = rating_weight * sentiment_weight
+        weighted_vectors.append(vector * weight)
+        weights.append(weight)
 
     for entry in diary_entries:
         if entry.movie_id in reviewed_movie_ids:

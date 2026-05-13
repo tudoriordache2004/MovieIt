@@ -13,6 +13,8 @@ object Routes {
 
     const val PROFILE = "profile"
     const val MOVIE_PICKER = "movie_picker"
+    const val MOVIE_PICKER_WIZARD = "movie_picker/wizard"
+    const val MOVIE_PICKER_RESULT = "movie_picker/result"
     const val MOVIEIT_LENS = "movieit_lens"
     const val USER_PROFILE = "user_profile/{userId}"
     const val FOLLOW_LIST = "follow_list/{userId}/{listType}"
