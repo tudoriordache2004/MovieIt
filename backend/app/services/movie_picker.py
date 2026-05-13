@@ -269,6 +269,7 @@ def classify_prompt_mood(prompt: str) -> tuple[str, list[str]]:
     result = get_zero_shot_classifier()(
         prompt,
         candidate_labels=MOOD_LABELS,
+        hypothesis_template="This person wants to watch a {} movie.",
         multi_label=True,
     )
 
