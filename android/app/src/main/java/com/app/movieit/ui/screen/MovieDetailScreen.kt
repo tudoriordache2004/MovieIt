@@ -50,6 +50,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -86,8 +87,10 @@ import com.app.movieit.ui.theme.DeepBlack
 import com.app.movieit.ui.theme.ErrorRed
 import com.app.movieit.ui.theme.GlowPurple
 import com.app.movieit.ui.theme.GoldAccent
+import com.app.movieit.ui.theme.LocalAccentPalette
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
+import com.app.movieit.ui.theme.rememberAccentPaletteFor
 import com.app.movieit.ui.viewmodel.MovieDetailViewModel
 import com.app.movieit.ui.viewmodel.ReviewsUiState
 import com.app.movieit.ui.viewmodel.ReviewsViewModel
@@ -100,6 +103,7 @@ fun MovieDetailScreen(
     onUserClick: (Int) -> Unit = {},
     onDirectorClick: (Int) -> Unit = {},
     onLogToDiary: () -> Unit = {},
+    onImageClick: (String) -> Unit = {},
     refreshDiaryLog: Boolean = false,
     onRefreshDiaryLogHandled: () -> Unit = {},
     viewModel: MovieDetailViewModel = hiltViewModel()
@@ -108,6 +112,7 @@ fun MovieDetailScreen(
     val reviewsVm: ReviewsViewModel = hiltViewModel()
     val reviewsState by reviewsVm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val (accent, paletteReady) = rememberAccentPaletteFor(state.movie?.posterUrl)
 
     LaunchedEffect(refreshDiaryLog) {
         if (refreshDiaryLog) {
@@ -140,13 +145,27 @@ fun MovieDetailScreen(
         }
     }
 
+    CompositionLocalProvider(LocalAccentPalette provides accent) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepBlack)
     ) {
+        // Palette-driven gradient behind header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(accent.primary.copy(alpha = 0.22f), Color.Transparent)
+                    )
+                )
+        )
+
         when {
-            state.loading -> {
+            state.loading || (state.movie != null && !paletteReady) -> {
                 CircularProgressIndicator(
                     color = AccentPurple,
                     modifier = Modifier.align(Alignment.Center)
@@ -195,7 +214,8 @@ fun MovieDetailScreen(
                             watchlistBusy = state.watchlistBusy,
                             onToggleWatchlist = { viewModel.toggleWatchlist() },
                             onLogToDiary = onLogToDiary,
-                            onDirectorClick = onDirectorClick
+                            onDirectorClick = onDirectorClick,
+                            onImageClick = { m.posterUrl?.let { onImageClick(it) } }
                         )
                     }
 
@@ -257,6 +277,7 @@ fun MovieDetailScreen(
         )
 
     }
+    } // CompositionLocalProvider
 }
 
 // ── Top Bar ──────────────────────────────────────────────────────────────────
@@ -302,8 +323,10 @@ private fun MovieHeaderSection(
     watchlistBusy: Boolean,
     onToggleWatchlist: () -> Unit,
     onLogToDiary: () -> Unit,
-    onDirectorClick: (Int) -> Unit = {}
+    onDirectorClick: (Int) -> Unit = {},
+    onImageClick: () -> Unit = {}
 ) {
+    val accent = LocalAccentPalette.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -317,7 +340,8 @@ private fun MovieHeaderSection(
                 .width(130.dp)
                 .aspectRatio(2f / 3f)
                 .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, Color(0x33AB6DFF), RoundedCornerShape(12.dp))
+                .border(1.dp, accent.primary.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                .clickable { onImageClick() }
         ) {
             AsyncImage(
                 model = movie.posterUrl,
@@ -354,9 +378,9 @@ private fun MovieHeaderSection(
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
                     shadow = Shadow(
-                        color = GlowPurple.copy(alpha = 0.4f),
+                        color = accent.glow.copy(alpha = 0.5f),
                         offset = Offset(0f, 0f),
-                        blurRadius = 8f
+                        blurRadius = 10f
                     )
                 )
             )
@@ -376,8 +400,8 @@ private fun MovieHeaderSection(
                 modifier = Modifier.fillMaxWidth().height(44.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AccentPurple,
-                    disabledContainerColor = AccentPurple.copy(alpha = 0.5f)
+                    containerColor = accent.primary,
+                    disabledContainerColor = accent.primary.copy(alpha = 0.5f)
                 )
             ) {
                 Icon(
@@ -406,21 +430,21 @@ private fun MovieHeaderSection(
                 onClick = onLogToDiary,
                 modifier = Modifier.fillMaxWidth().height(44.dp),
                 shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, AccentPurple),
+                border = BorderStroke(1.dp, accent.primary),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(0x33AB6DFF)
+                    containerColor = accent.primary.copy(alpha = 0.12f)
                 )
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.MenuBook,
                     contentDescription = null,
-                    tint = GlowPurple,
+                    tint = accent.glow,
                     modifier = Modifier.size(15.dp)
                 )
                 Spacer(Modifier.width(5.dp))
                 Text(
                     "Log to Diary",
-                    color = GlowPurple,
+                    color = accent.glow,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 12.sp,
                     maxLines = 1
@@ -435,6 +459,7 @@ private fun DirectedByRow(
     directors: List<com.app.movieit.data.model.Director>,
     onDirectorClick: (Int) -> Unit
 ) {
+    val accent = LocalAccentPalette.current
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -455,7 +480,7 @@ private fun DirectedByRow(
                 }
                 Text(
                     text = director.name,
-                    color = AccentPurple,
+                    color = accent.primary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.clickable { onDirectorClick(director.id) }
@@ -503,6 +528,7 @@ private fun RatingChip(avgRating: String) {
 
 @Composable
 private fun SynopsisSection(description: String) {
+    val accent = LocalAccentPalette.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -511,7 +537,7 @@ private fun SynopsisSection(description: String) {
     ) {
         Text(
             "SYNOPSIS",
-            color = GlowPurple,
+            color = accent.glow,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
@@ -545,6 +571,7 @@ fun ReviewsSection(
     onModerateDeleteReview: (Int) -> Unit,
     onUserClick: (Int) -> Unit = {}
 ) {
+    val accent = LocalAccentPalette.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -553,7 +580,7 @@ fun ReviewsSection(
     ) {
         Text(
             "USER REVIEWS",
-            color = GlowPurple,
+            color = accent.glow,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
@@ -569,14 +596,14 @@ fun ReviewsSection(
                 )
                 TextButton(
                     onClick = onRetry,
-                    colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple)
+                    colors = ButtonDefaults.textButtonColors(contentColor = accent.glow)
                 ) { Text("Retry") }
             }
         }
 
         if (state.loading) {
             CircularProgressIndicator(
-                color = AccentPurple,
+                color = accent.primary,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         } else if (state.reviews.isEmpty()) {
@@ -645,6 +672,7 @@ private fun ReviewCard(
     val isEditing = editingReviewId == review.id
     val isDeletingThis = deletingReviewId == review.id
     val canModerate = !isMine && (currentUserRole == "mod" || currentUserRole == "admin")
+    val accent = LocalAccentPalette.current
 
     // Toggle: false = hidden, true = revealed
     var revealed by rememberSaveable(review.id) { mutableStateOf(false) }
@@ -667,7 +695,7 @@ private fun ReviewCard(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(AccentPurple, CircleShape),
+                    .background(accent.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 val pictureUrl = review.profilePictureUrl
@@ -692,7 +720,7 @@ private fun ReviewCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     review.username ?: "User #${review.userId}",
-                    color = if (!isMine) AccentPurple else TextPrimary,
+                    color = if (!isMine) accent.primary else TextPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                     modifier = if (!isMine) Modifier.clickable { onUserClick() } else Modifier
@@ -765,9 +793,9 @@ private fun ReviewCard(
                 minLines = 2,
                 textStyle = TextStyle(color = TextPrimary),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = AccentPurple,
+                    focusedBorderColor = accent.primary,
                     unfocusedBorderColor = BorderColor,
-                    cursorColor = GlowPurple,
+                    cursorColor = accent.glow,
                     focusedContainerColor = Color(0x0DFFFFFF),
                     unfocusedContainerColor = Color(0x0AFFFFFF)
                 )
@@ -778,7 +806,7 @@ private fun ReviewCard(
                     checked = editIsSpoiler,
                     onCheckedChange = onEditSpoilerChange,
                     colors = CheckboxDefaults.colors(
-                        checkedColor = AccentPurple,
+                        checkedColor = accent.primary,
                         uncheckedColor = TextSecondary
                     )
                 )
@@ -790,7 +818,7 @@ private fun ReviewCard(
                     onClick = onSaveEdit,
                     enabled = !savingEdit,
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = accent.primary)
                 ) {
                     Text(if (savingEdit) "Saving..." else "Save", color = TextPrimary, fontSize = 13.sp)
                 }
@@ -807,7 +835,7 @@ private fun ReviewCard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(
                     onClick = onEdit,
-                    colors = ButtonDefaults.textButtonColors(contentColor = GlowPurple),
+                    colors = ButtonDefaults.textButtonColors(contentColor = accent.glow),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                 ) { Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
 
@@ -860,6 +888,7 @@ private fun WriteReviewCard(
     onPost: () -> Unit,
     onSpoilerChange: (Boolean) -> Unit
 ) {
+    val accent = LocalAccentPalette.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -870,7 +899,7 @@ private fun WriteReviewCard(
     ) {
         Text(
             "WRITE A REVIEW",
-            color = GlowPurple,
+            color = accent.glow,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
@@ -887,9 +916,9 @@ private fun WriteReviewCard(
             minLines = 3,
             textStyle = TextStyle(color = TextPrimary),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AccentPurple,
+                focusedBorderColor = accent.primary,
                 unfocusedBorderColor = BorderColor,
-                cursorColor = GlowPurple,
+                cursorColor = accent.glow,
                 focusedContainerColor = Color(0x0DFFFFFF),
                 unfocusedContainerColor = Color(0x0AFFFFFF)
             ),
@@ -904,7 +933,7 @@ private fun WriteReviewCard(
                 checked = state.myIsSpoiler,
                 onCheckedChange = onSpoilerChange,
                 colors = CheckboxDefaults.colors(
-                    checkedColor = AccentPurple,
+                    checkedColor = accent.primary,
                     uncheckedColor = TextSecondary
                 )
             )
@@ -917,8 +946,8 @@ private fun WriteReviewCard(
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = AccentPurple,
-                disabledContainerColor = AccentPurple.copy(alpha = 0.5f)
+                containerColor = accent.primary,
+                disabledContainerColor = accent.primary.copy(alpha = 0.5f)
             )
         ) {
             if (state.posting) {
@@ -1077,10 +1106,11 @@ private fun SimilarMoviesSection(
 
 @Composable
 private fun SimilarRow(title: String, movies: List<Movie>, onMovieClick: (Int) -> Unit) {
+    val accent = LocalAccentPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            color = GlowPurple,
+            color = accent.glow,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp,
@@ -1104,6 +1134,7 @@ private fun SimilarRow(title: String, movies: List<Movie>, onMovieClick: (Int) -
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun GenresSection(genres: List<String>) {
+    val accent = LocalAccentPalette.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1112,7 +1143,7 @@ private fun GenresSection(genres: List<String>) {
     ) {
         Text(
             "GENRES",
-            color = GlowPurple,
+            color = accent.glow,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp
@@ -1125,12 +1156,12 @@ private fun GenresSection(genres: List<String>) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(AccentPurple.copy(alpha = 0.18f))
+                        .background(accent.primary.copy(alpha = 0.18f))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = genre,
-                        color = GlowPurple,
+                        color = accent.glow,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )

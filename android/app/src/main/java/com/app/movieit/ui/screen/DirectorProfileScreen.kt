@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +55,10 @@ import coil.compose.AsyncImage
 import com.app.movieit.data.model.DirectorMovie
 import com.app.movieit.data.model.DirectorProfile
 import com.app.movieit.ui.theme.AccentPurple
-import com.app.movieit.ui.theme.GlowPurple
+import com.app.movieit.ui.theme.LocalAccentPalette
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
+import com.app.movieit.ui.theme.rememberAccentPaletteFor
 import com.app.movieit.ui.viewmodel.DirectorProfileViewModel
 
 private val DirScreenBg = Color(0xFF0B0B0F)
@@ -67,17 +69,33 @@ private val DirCardBorder = Color(0x1AFFFFFF)
 fun DirectorProfileScreen(
     onBack: () -> Unit,
     onMovieClick: (Int) -> Unit,
+    onImageClick: (String) -> Unit = {},
     viewModel: DirectorProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val (accent, paletteReady) = rememberAccentPaletteFor(state.profile?.profileUrl)
 
+    CompositionLocalProvider(LocalAccentPalette provides accent) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DirScreenBg)
     ) {
+        // Palette-driven gradient behind header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(accent.primary.copy(alpha = 0.20f), Color.Transparent)
+                    )
+                )
+        )
+
         when {
-            state.loading -> Box(
+            state.loading || (state.profile != null && !paletteReady) -> Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
@@ -95,7 +113,7 @@ fun DirectorProfileScreen(
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { viewModel.load() },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentPurple)
+                        colors = ButtonDefaults.buttonColors(containerColor = accent.primary)
                     ) { Text("Retry", color = TextPrimary) }
                 }
             }
@@ -103,7 +121,8 @@ fun DirectorProfileScreen(
             state.profile != null -> {
                 DirectorContent(
                     profile = state.profile!!,
-                    onMovieClick = onMovieClick
+                    onMovieClick = onMovieClick,
+                    onImageClick = onImageClick
                 )
             }
         }
@@ -114,12 +133,14 @@ fun DirectorProfileScreen(
             modifier = Modifier.align(Alignment.TopCenter)
         )
     }
+    } // CompositionLocalProvider
 }
 
 @Composable
 private fun DirectorContent(
     profile: DirectorProfile,
-    onMovieClick: (Int) -> Unit
+    onMovieClick: (Int) -> Unit,
+    onImageClick: (String) -> Unit = {}
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -135,7 +156,7 @@ private fun DirectorContent(
 
         // Bio section: portrait + biography text
         item(span = { GridItemSpan(2) }) {
-            DirectorBioSection(profile = profile)
+            DirectorBioSection(profile = profile, onImageClick = onImageClick)
         }
 
         // Details strip: birthday, place of birth, deathday
@@ -167,7 +188,8 @@ private fun DirectorContent(
 }
 
 @Composable
-private fun DirectorBioSection(profile: DirectorProfile) {
+private fun DirectorBioSection(profile: DirectorProfile, onImageClick: (String) -> Unit = {}) {
+    val accent = LocalAccentPalette.current
     var expanded by rememberSaveable { mutableStateOf(false) }
 
     Row(
@@ -178,16 +200,18 @@ private fun DirectorBioSection(profile: DirectorProfile) {
         verticalAlignment = Alignment.Top
     ) {
         // Portrait card (portrait-shaped like a movie poster: 96×144dp)
+        val hasPhoto = !profile.profileUrl.isNullOrBlank()
         Box(
             modifier = Modifier
                 .width(96.dp)
                 .height(144.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .border(1.dp, DirCardBorder, RoundedCornerShape(10.dp))
-                .background(DirCardBg),
+                .border(1.dp, accent.primary.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                .background(accent.container)
+                .then(if (hasPhoto) Modifier.clickable { onImageClick(profile.profileUrl!!) } else Modifier),
             contentAlignment = Alignment.Center
         ) {
-            if (!profile.profileUrl.isNullOrBlank()) {
+            if (hasPhoto) {
                 AsyncImage(
                     model = profile.profileUrl,
                     contentDescription = "${profile.name} photo",
@@ -219,7 +243,7 @@ private fun DirectorBioSection(profile: DirectorProfile) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (expanded) "READ LESS" else "READ MORE",
-                    color = AccentPurple,
+                    color = accent.primary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
@@ -277,8 +301,9 @@ private fun DetailRow(label: String, value: String) {
 
 @Composable
 private fun FilmographyHeader(count: Int) {
+    val accent = LocalAccentPalette.current
     Column(modifier = Modifier.fillMaxWidth()) {
-        Divider(color = DirCardBorder)
+        Divider(color = accent.primary.copy(alpha = 0.20f))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -294,7 +319,7 @@ private fun FilmographyHeader(count: Int) {
                 letterSpacing = 1.5.sp
             )
         }
-        Divider(color = DirCardBorder)
+        Divider(color = accent.primary.copy(alpha = 0.20f))
         Spacer(Modifier.height(4.dp))
     }
 }

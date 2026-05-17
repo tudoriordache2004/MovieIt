@@ -56,6 +56,7 @@ import com.app.movieit.ui.screen.MyDiaryScreen
 import com.app.movieit.ui.screen.ProfileScreen
 import com.app.movieit.ui.screen.RegisterScreen
 import com.app.movieit.ui.screen.DirectorProfileScreen
+import com.app.movieit.ui.screen.FullscreenImageScreen
 import com.app.movieit.ui.screen.UserProfileScreen
 import com.app.movieit.ui.screen.WatchlistScreen
 import com.app.movieit.ui.theme.AccentPurple
@@ -236,6 +237,9 @@ fun AppNav() {
                     },
                     onDirectorClick = { directorId ->
                         navController.navigate(Routes.directorProfile(directorId))
+                    },
+                    onImageClick = { url ->
+                        navController.navigate(Routes.fullscreenImage(url))
                     }
                 )
             }
@@ -281,7 +285,19 @@ fun AppNav() {
             ) {
                 DirectorProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onMovieClick = { id -> navController.navigate(Routes.movieDetails(id)) }
+                    onMovieClick = { id -> navController.navigate(Routes.movieDetails(id)) },
+                    onImageClick = { url -> navController.navigate(Routes.fullscreenImage(url)) }
+                )
+            }
+
+            composable(
+                route = Routes.FULLSCREEN_IMAGE,
+                arguments = listOf(navArgument("url") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val url = backStackEntry.arguments?.getString("url") ?: return@composable
+                FullscreenImageScreen(
+                    imageUrl = url,
+                    onBack = { navController.popBackStack() }
                 )
             }
 
