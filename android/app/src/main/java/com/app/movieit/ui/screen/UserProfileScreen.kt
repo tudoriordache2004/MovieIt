@@ -36,8 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -76,11 +74,13 @@ fun UserProfileScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
     ) {
+        UserProfileTopBar(onBack = onBack)
+
         when {
             state.loading -> Box(
                 modifier = Modifier.fillMaxSize(),
@@ -116,7 +116,7 @@ fun UserProfileScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp)
-                        .padding(top = 80.dp, bottom = 32.dp),
+                        .padding(top = 16.dp, bottom = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Profile picture (read-only)
@@ -288,48 +288,32 @@ fun UserProfileScreen(
                 }
             }
         }
-
-        // Top bar with back button
-        UserProfileTopBar(onBack = onBack, modifier = Modifier.align(Alignment.TopCenter))
     }
 }
 
 @Composable
 private fun UserProfileTopBar(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xB3070711))
-            .drawBehind {
-                drawLine(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent
-                        )
-                    ),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.5f
-                )
-            }
+            .background(ScreenBg)
             .statusBarsPadding()
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
+        IconButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = TextPrimary
+                tint = TextPrimary,
+                modifier = Modifier.size(22.dp)
             )
         }
         Text(
             text = "Profile",
             color = TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.align(Alignment.Center)
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

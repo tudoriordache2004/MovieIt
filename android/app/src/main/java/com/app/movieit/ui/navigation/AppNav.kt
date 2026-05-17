@@ -72,8 +72,6 @@ private val bottomNavRoutes = setOf(
     Routes.DIARY,
     Routes.PROFILE,
     Routes.MOVIE_DETAILS,
-    Routes.USER_PROFILE,
-    Routes.FOLLOW_LIST,
     Routes.DIARY_LOG
 )
 
@@ -85,8 +83,6 @@ fun AppNav() {
 
     val showBottomNav = currentRoute in bottomNavRoutes ||
             currentRoute?.startsWith("movie/") == true ||
-            currentRoute?.startsWith("user_profile/") == true ||
-            currentRoute?.startsWith("follow_list/") == true ||
             currentRoute?.startsWith("diary_log/") == true ||
             currentRoute?.startsWith("director/") == true
 

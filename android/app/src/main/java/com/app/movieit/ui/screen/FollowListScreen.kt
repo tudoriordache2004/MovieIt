@@ -38,9 +38,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -83,11 +80,13 @@ fun FollowListScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(ScreenBg)
     ) {
+        FollowListTopBar(title = title, onBack = onBack)
+
         when {
             state.loading -> Box(
                 modifier = Modifier.fillMaxSize(),
@@ -114,9 +113,7 @@ fun FollowListScreen(
 
             else -> LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 72.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     horizontal = 16.dp,
                     vertical = 8.dp
@@ -168,8 +165,6 @@ fun FollowListScreen(
                 }
             }
         }
-
-        FollowListTopBar(title = title, onBack = onBack, modifier = Modifier.align(Alignment.TopCenter))
     }
 }
 
@@ -297,40 +292,27 @@ private fun FollowListTopBar(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xB3070711))
-            .drawBehind {
-                drawLine(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent, AccentPurple, GlowPurple, AccentPurple, Color.Transparent
-                        )
-                    ),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.5f
-                )
-            }
+            .background(ScreenBg)
             .statusBarsPadding()
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
+        IconButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = TextPrimary
+                tint = TextPrimary,
+                modifier = Modifier.size(22.dp)
             )
         }
         Text(
             text = title,
             color = TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.align(Alignment.Center)
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
