@@ -3,6 +3,7 @@ package com.app.movieit.di
 import android.content.Context
 import com.app.movieit.data.api.AuthApi
 import com.app.movieit.data.api.DirectorApi
+import com.app.movieit.data.api.FeedApi
 import com.app.movieit.data.api.MovieApi
 import com.app.movieit.data.api.SearchApi
 import com.app.movieit.data.api.LensApi
@@ -139,4 +140,9 @@ object NetworkModule {
     @Singleton
     fun provideSearchApi(retrofit: Retrofit): SearchApi =
         retrofit.create(SearchApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideFeedApi(retrofit: Retrofit): FeedApi =
+        retrofit.create(FeedApi::class.java)
 }

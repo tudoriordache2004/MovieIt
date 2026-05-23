@@ -73,7 +73,7 @@ def create_review(
         raise HTTPException(status_code=400, detail=VULGARITY_REJECTION_MESSAGE)
 
     # NLP spoiler suggestion overrides user flag (only if comment provided)
-    suggested_is_spoiler = predict_spoiler(comment) if comment else False
+    suggested_is_spoiler = predict_spoiler(comment, movie_title=movie.title) if comment else False
     is_spoiler_value = suggested_is_spoiler if comment else review_data.is_spoiler
 
     db_review = Review(
@@ -253,7 +253,12 @@ def update_review(
         review.comment = review_update.comment
 
         # If comment changes, recompute spoiler from NLP (overrides payload is_spoiler)
-        suggested_is_spoiler = predict_spoiler(new_comment) if new_comment else False
+        movie = db.query(Movie).filter(Movie.id == review.movie_id).first()
+        suggested_is_spoiler = (
+            predict_spoiler(new_comment, movie_title=movie.title if movie else None)
+            if new_comment
+            else False
+        )
         review.is_spoiler = suggested_is_spoiler if new_comment else False
 
         # Non-persistent response fields

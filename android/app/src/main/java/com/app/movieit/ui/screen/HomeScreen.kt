@@ -20,11 +20,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +55,7 @@ import com.app.movieit.ui.theme.GlowPurple
 import com.app.movieit.ui.theme.GoldAccent
 import com.app.movieit.ui.theme.TextPrimary
 import com.app.movieit.ui.theme.TextSecondary
+import com.app.movieit.ui.viewmodel.ActivityFeedViewModel
 import com.app.movieit.ui.viewmodel.HomeViewModel
 
 @Composable
@@ -58,11 +63,14 @@ fun HomeScreen(
     onMovieClick: (Int) -> Unit,
     onPickerClick: () -> Unit = {},
     onLensClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
     shouldRefresh: Boolean = false,
     onRefreshHandled: () -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    feedViewModel: ActivityFeedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val feedState by feedViewModel.uiState.collectAsState()
 
     LaunchedEffect(shouldRefresh) {
         if (shouldRefresh) {
@@ -93,7 +101,10 @@ fun HomeScreen(
             ) {
                 // Logo bar
                 item(span = { GridItemSpan(3) }) {
-                    HomeLogoBar()
+                    HomeLogoBar(
+                        unreadCount = feedState.unreadCount,
+                        onNotificationsClick = onNotificationsClick,
+                    )
                 }
 
                 // Mood message
@@ -204,34 +215,67 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeLogoBar() {
-    Column(
+private fun HomeLogoBar(
+    unreadCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = buildAnnotatedString {
-                withStyle(
-                    SpanStyle(
-                        color = TextPrimary,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-1).sp
-                    )
-                ) { append("MOVIE") }
-                withStyle(
-                    SpanStyle(
-                        color = GoldAccent,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-1).sp
-                    )
-                ) { append("IT") }
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(
+                            color = TextPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-1).sp
+                        )
+                    ) { append("MOVIE") }
+                    withStyle(
+                        SpanStyle(
+                            color = GoldAccent,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-1).sp
+                        )
+                    ) { append("IT") }
+                },
+                fontSize = 48.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        BadgedBox(
+            badge = {
+                if (unreadCount > 0) {
+                    Badge(containerColor = GlowPurple) {
+                        Text(
+                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                            color = TextPrimary,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
             },
-            fontSize = 48.sp,
-            textAlign = TextAlign.Center
-        )
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp),
+        ) {
+            IconButton(onClick = onNotificationsClick) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Activity feed",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+        }
     }
 }
 

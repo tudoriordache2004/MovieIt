@@ -40,6 +40,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.app.movieit.ui.screen.ActivityFeedScreen
 import com.app.movieit.ui.screen.AuthGateScreen
 import com.app.movieit.ui.screen.DiaryLogScreen
 import com.app.movieit.ui.screen.FollowListScreen
@@ -72,7 +73,8 @@ private val bottomNavRoutes = setOf(
     Routes.DIARY,
     Routes.PROFILE,
     Routes.MOVIE_DETAILS,
-    Routes.DIARY_LOG
+    Routes.DIARY_LOG,
+    Routes.ACTIVITY_FEED,
 )
 
 @Composable
@@ -148,7 +150,18 @@ fun AppNav() {
                     },
                     onLensClick = {
                         navController.navigate(Routes.MOVIEIT_LENS)
-                    }
+                    },
+                    onNotificationsClick = {
+                        navController.navigate(Routes.ACTIVITY_FEED)
+                    },
+                )
+            }
+
+            composable(Routes.ACTIVITY_FEED) {
+                ActivityFeedScreen(
+                    onBack = { navController.popBackStack() },
+                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) },
+                    onUserClick = { userId -> navController.navigate(Routes.userProfile(userId)) },
                 )
             }
 

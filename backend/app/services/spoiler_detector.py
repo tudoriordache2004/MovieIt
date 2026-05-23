@@ -11,6 +11,9 @@ _PLOT_POINT_PATTERNS = [
     r"\b(ending|finale|final scene|at the end|in the end)\b",
     r"\b(reveal|reveals|revealed|turns out)\b",
     r"\b(was dead the whole time|is the killer|was the killer)\b",
+    r"\b(end up|ends up|ended up|will end up)\b",
+    r"\b(will be together|stay together|get together|break up|split up)\b",
+    r"\b(marries|marry|gets married|pregnant|survives|survive)\b",
 ]
 
 def _has_plot_point_signal(text: str) -> bool:
@@ -29,7 +32,7 @@ def get_classifier():
     return _classifier
 
 
-def predict_spoiler(text: str) -> bool:
+def predict_spoiler(text: str, movie_title: str | None = None) -> bool:
     if not text or not text.strip():
         return False
 
@@ -43,7 +46,11 @@ def predict_spoiler(text: str) -> bool:
         return True
 
     if has_plot_signal:
-        groq_result = classify_with_groq(normalized_text, "spoiler")
+        groq_result = classify_with_groq(
+            normalized_text,
+            "spoiler",
+            context=movie_title,
+        )
         if groq_result is not None:
             return groq_result
         return score >= SPOILER_LOW
@@ -51,7 +58,11 @@ def predict_spoiler(text: str) -> bool:
     if score <= SPOILER_LOW:
         return False
 
-    groq_result = classify_with_groq(normalized_text, "spoiler")
+    groq_result = classify_with_groq(
+        normalized_text,
+        "spoiler",
+        context=movie_title,
+    )
     if groq_result is not None:
         return groq_result
 

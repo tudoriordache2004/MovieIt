@@ -53,7 +53,7 @@ def add_to_diary(
 
     # Create review bound to this diary entry if user sent rating/comment
     if payload.rating is not None or comment:
-        suggested_is_spoiler = predict_spoiler(comment) if comment else False
+        suggested_is_spoiler = predict_spoiler(comment, movie_title=movie.title) if comment else False
         review = Review(
             user_id=current_user.id,
             movie_id=payload.movie_id,
@@ -128,7 +128,12 @@ def update_diary_entry(
 
         if not review:
             if payload.rating is not None or new_comment:
-                suggested_is_spoiler = predict_spoiler(new_comment) if new_comment else False
+                movie = db.query(Movie).filter(Movie.id == entry.movie_id).first()
+                suggested_is_spoiler = (
+                    predict_spoiler(new_comment, movie_title=movie.title if movie else None)
+                    if new_comment
+                    else False
+                )
                 review = Review(
                     user_id=current_user.id,
                     movie_id=entry.movie_id,
@@ -143,7 +148,12 @@ def update_diary_entry(
                 review.rating = payload.rating
             if "comment" in fields:
                 review.comment = payload.comment
-                suggested_is_spoiler = predict_spoiler(new_comment) if new_comment else False
+                movie = db.query(Movie).filter(Movie.id == entry.movie_id).first()
+                suggested_is_spoiler = (
+                    predict_spoiler(new_comment, movie_title=movie.title if movie else None)
+                    if new_comment
+                    else False
+                )
                 review.is_spoiler = suggested_is_spoiler
 
             # If both fields are now empty, remove the review

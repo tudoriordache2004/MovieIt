@@ -21,6 +21,7 @@ object Routes {
     const val DIARY_LOG = "diary_log/{movieId}/{entryId}"
     const val DIRECTOR_PROFILE = "director/{directorId}"
     const val FULLSCREEN_IMAGE = "fullscreen_image?url={url}"
+    const val ACTIVITY_FEED = "activity_feed"
     fun movieDetails(movieId: Int) = "movie/$movieId"
     fun userProfile(userId: Int) = "user_profile/$userId"
     fun followList(userId: Int, listType: String) = "follow_list/$userId/$listType"
