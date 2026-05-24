@@ -98,6 +98,32 @@ def get_my_diary(
     return entries
 
 
+@router.get("/user/{user_id}", response_model=List[DiaryOut])
+def get_user_diary(
+    user_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
+
+    entries = (
+        db.query(DiaryEntry)
+        .options(
+            joinedload(DiaryEntry.movie),
+            joinedload(DiaryEntry.review),
+        )
+        .filter(DiaryEntry.user_id == user_id)
+        .order_by(DiaryEntry.watched_on.desc(), DiaryEntry.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return entries
+
+
 
 @router.put("/{entry_id}", response_model=DiaryOut)
 def update_diary_entry(

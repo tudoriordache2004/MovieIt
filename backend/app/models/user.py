@@ -14,7 +14,9 @@ class User(Base):
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     role = Column(String(10), nullable=False, server_default="user")  # "user" | "mod" | "admin"
     profile_picture_url = Column(String(500), nullable=True)
-    
+    bio = Column(String(150), nullable=True)
+    cover_photo_url = Column(String(500), nullable=True)
+
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     watchlist_items = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     diary_entries = relationship("DiaryEntry", back_populates="user", cascade="all, delete-orphan")
@@ -30,4 +32,11 @@ class User(Base):
         foreign_keys="Follow.following_id",
         back_populates="following",
         cascade="all, delete-orphan",
+    )
+
+    top_movies = relationship(
+        "UserTopMovie",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        order_by="UserTopMovie.position",
     )

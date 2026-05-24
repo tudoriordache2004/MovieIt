@@ -2,15 +2,24 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
 from app.models.diary_entry import DiaryEntry
 from app.models.follow import Follow
+from app.models.movie import Movie
 from app.models.review import Review
 from app.models.user import User
+from app.models.user_top_movie import UserTopMovie
 from app.routers.auth import get_current_user
-from app.schemas.user import FollowStatusOut, PublicProfileOut, PublicUserOut, PublicUserWithFollow
+from app.schemas.user import (
+    FollowStatusOut,
+    MovieMini,
+    PublicProfileOut,
+    PublicUserOut,
+    PublicUserWithFollow,
+    UserProfileUpdate,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -96,6 +105,21 @@ def get_public_profile(
         .scalar()
         or 0
     )
+    avg_raw = (
+        db.query(func.avg(Review.rating))
+        .filter(Review.user_id == user_id, Review.rating.isnot(None))
+        .scalar()
+    )
+    average_rating = round(float(avg_raw), 1) if avg_raw is not None else None
+
+    top_rows = (
+        db.query(UserTopMovie)
+        .options(joinedload(UserTopMovie.movie))
+        .filter(UserTopMovie.user_id == user_id)
+        .order_by(UserTopMovie.position.asc())
+        .all()
+    )
+    top_movies = [MovieMini.model_validate(r.movie) for r in top_rows]
 
     is_me = current_user.id == user_id
     is_following = False if is_me else is_following_user(
@@ -113,9 +137,42 @@ def get_public_profile(
         following_count=following_count,
         reviews_count=reviews_count,
         diary_count=diary_count,
+        movies_watched_count=diary_count,
+        average_rating=average_rating,
+        bio=user.bio,
+        cover_photo_url=user.cover_photo_url,
+        top_movies=top_movies,
         is_following=is_following,
         is_me=is_me,
     )
+
+
+@router.put("/me/profile", response_model=PublicProfileOut)
+def update_my_profile(
+    payload: UserProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.bio = payload.bio
+    if payload.cover_photo_url is not None:
+        current_user.cover_photo_url = payload.cover_photo_url
+
+    if payload.top_movie_ids:
+        found = db.query(Movie.id).filter(Movie.id.in_(payload.top_movie_ids)).all()
+        found_ids = {row[0] for row in found}
+        missing = [mid for mid in payload.top_movie_ids if mid not in found_ids]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Movie ids not found: {missing}",
+            )
+
+    db.query(UserTopMovie).filter(UserTopMovie.user_id == current_user.id).delete()
+    for idx, movie_id in enumerate(payload.top_movie_ids, start=1):
+        db.add(UserTopMovie(user_id=current_user.id, movie_id=movie_id, position=idx))
+
+    db.commit()
+    return get_public_profile(user_id=current_user.id, current_user=current_user, db=db)
 
 
 @router.post("/{user_id}/follow", response_model=FollowStatusOut)

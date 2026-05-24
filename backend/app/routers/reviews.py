@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app.database import get_db
@@ -105,7 +105,7 @@ def get_reviews(
     db: Session = Depends(get_db),
 ):
     """Listă reviews cu filtrare"""
-    query = db.query(Review)
+    query = db.query(Review).options(joinedload(Review.user), joinedload(Review.movie))
 
     if movie_id:
         query = query.filter(Review.movie_id == movie_id)
@@ -139,6 +139,7 @@ def get_reviews_by_movie(
 
     reviews = (
         db.query(Review)
+        .options(joinedload(Review.user), joinedload(Review.movie))
         .filter(Review.movie_id == movie_id)
         .order_by(Review.created_at.desc())
         .offset(skip)
@@ -165,6 +166,7 @@ def get_reviews_by_user(
 
     reviews = (
         db.query(Review)
+        .options(joinedload(Review.user), joinedload(Review.movie))
         .filter(Review.user_id == user_id)
         .order_by(Review.created_at.desc())
         .offset(skip)
@@ -198,6 +200,7 @@ def get_my_reviews(
     """Listă reviews ale user-ului curent"""
     reviews = (
         db.query(Review)
+        .options(joinedload(Review.user), joinedload(Review.movie))
         .filter(Review.user_id == current_user.id)
         .order_by(Review.created_at.desc())
         .offset(skip)

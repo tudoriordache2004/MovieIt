@@ -280,6 +280,7 @@ fun AppNav() {
                 val shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("refresh_user_profile") ?: false
                 UserProfileScreen(
                     onBack = { navController.popBackStack() },
+                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) },
                     onNavigateToFollowList = { uid, listType ->
                         navController.navigate(Routes.followList(uid, listType))
                     },
@@ -362,6 +363,7 @@ fun AppNav() {
                 ProfileScreen(
                     onOpenDiary = { navController.navigate(Routes.DIARY) },
                     onOpenWatchlist = { navController.navigate(Routes.WATCHLIST) },
+                    onMovieClick = { movieId -> navController.navigate(Routes.movieDetails(movieId)) },
                     onLogout = {
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }

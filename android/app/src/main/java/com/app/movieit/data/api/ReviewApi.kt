@@ -28,6 +28,13 @@ interface ReviewApi {
         @Query("limit") limit: Int = 100
     ): Response<List<ReviewOut>>
 
+    @retrofit2.http.GET("reviews/user/{user_id}")
+    suspend fun getReviewsByUser(
+        @Path("user_id") userId: Int,
+        @Query("skip") skip: Int = 0,
+        @Query("limit") limit: Int = 100
+    ): Response<List<ReviewOut>>
+
     @retrofit2.http.GET("reviews/me/count")
     suspend fun getMyReviewsCount(): Response<ReviewCountOut>
 

@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
+from app.schemas.movie import MovieOut
 
 class ReviewCreate(BaseModel):
     movie_id: int
@@ -16,7 +17,7 @@ class ReviewUpdate(BaseModel):
 
 class ReviewOut(BaseModel):
     id: int
-    user_id: int
+    user_id: int  
     movie_id: int
     rating: Optional[int] = None
     comment: Optional[str]
@@ -24,6 +25,9 @@ class ReviewOut(BaseModel):
     created_at: datetime
     username: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    suggested_is_spoiler: bool = False
+    suggested_is_toxic: bool = False   
+    movie: Optional[MovieOut] = None
 
     class Config:
         from_attributes = True

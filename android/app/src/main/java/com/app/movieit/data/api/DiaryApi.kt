@@ -20,6 +20,13 @@ interface DiaryApi {
         @Query("limit") limit: Int = 100
     ): Response<List<DiaryOut>>
 
+    @retrofit2.http.GET("diary/user/{user_id}")
+    suspend fun getUserDiary(
+        @Path("user_id") userId: Int,
+        @Query("skip") skip: Int = 0,
+        @Query("limit") limit: Int = 100
+    ): Response<List<DiaryOut>>
+
     @retrofit2.http.PUT("diary/{entry_id}")
     suspend fun updateDiaryEntry(
         @Path("entry_id") entryId: Int,

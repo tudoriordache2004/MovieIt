@@ -8,7 +8,8 @@ data class UserOut(
     val username: String,
     @SerializedName("created_at") val createdAt: String,
     val role: String? = null,
-    @SerializedName("profile_picture_url") val profilePictureUrl: String? = null
+    @SerializedName("profile_picture_url") val profilePictureUrl: String? = null,
+    @SerializedName("cover_photo_url") val coverPhotoUrl: String? = null,
 )
 
 data class ProfileStatsOut(

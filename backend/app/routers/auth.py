@@ -19,6 +19,9 @@ from passlib.context import CryptContext
 UPLOADS_DIR = Path("uploads/profile_pictures")
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+COVER_UPLOADS_DIR = Path("uploads/cover_photos")
+COVER_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter(prefix="/auth", tags=["auth"])
 bearer_scheme = HTTPBearer()
@@ -198,6 +201,31 @@ async def upload_profile_picture(
     await asyncio.to_thread(dest.write_bytes, contents)
 
     current_user.profile_picture_url = f"/uploads/profile_pictures/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.put("/upload-cover-photo", response_model=UserOut)
+async def upload_cover_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG and WebP images are allowed")
+
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+    filename = f"{current_user.id}_cover.{ext}"
+    dest = COVER_UPLOADS_DIR / filename
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 5 MB")
+
+    await asyncio.to_thread(dest.write_bytes, contents)
+
+    current_user.cover_photo_url = f"/uploads/cover_photos/{filename}"
     db.commit()
     db.refresh(current_user)
     return current_user

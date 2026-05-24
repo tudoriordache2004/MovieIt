@@ -9,6 +9,7 @@ from app.models.movie_embedding import MovieEmbedding
 from app.models.movie_visual_embedding import MovieVisualEmbedding
 from app.models.movie_picker_session import MoviePickerSession
 from app.models.director import Director, MovieDirector
+from app.models.user_top_movie import UserTopMovie
 
 # Import Base pentru a putea crea tabelele
 from app.database import Base
@@ -26,5 +27,6 @@ __all__ = [
     "MoviePickerSession",
     "Follow",
     "Director",
-    "MovieDirector"
+    "MovieDirector",
+    "UserTopMovie",
 ]

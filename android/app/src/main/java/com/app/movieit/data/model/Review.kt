@@ -24,7 +24,8 @@ data class ReviewOut(
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("is_spoiler") val isSpoiler: Boolean,
     val username: String? = null,
-    @SerializedName("profile_picture_url") val profilePictureUrl: String? = null
+    @SerializedName("profile_picture_url") val profilePictureUrl: String? = null,
+    val movie: Movie? = null
 )
 
 data class ReviewModerateUpdate(

@@ -28,4 +28,8 @@ interface AuthApi {
     @Multipart
     @PUT("auth/me/profile-picture")
     suspend fun uploadProfilePicture(@Part file: MultipartBody.Part): Response<UserOut>
+
+    @Multipart
+    @PUT("auth/upload-cover-photo")
+    suspend fun uploadCoverPhoto(@Part file: MultipartBody.Part): Response<UserOut>
 }
