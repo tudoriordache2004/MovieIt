@@ -12,6 +12,8 @@ import com.app.movieit.data.model.SimilarMoviesResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import javax.inject.Inject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -47,30 +49,35 @@ class MovieDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
-                val resp = movieApi.getMovieById(movieId)
-                if (resp.isSuccessful) {
-                    _uiState.update { it.copy(loading = false, movie = resp.body()) }
-                } else {
-                    _uiState.update { it.copy(loading = false, error = "HTTP ${resp.code()} ${resp.message()}") }
-                }
-                val checkResp = watchlistApi.isInMyWatchlist(movieId)
-                if (checkResp.isSuccessful) {
-                    _uiState.update { it.copy(inWatchlist = checkResp.body() ?: false) }
-                } else {
-                    _uiState.update { it.copy(inWatchlist = false) } // fallback
+                coroutineScope {
+                    val movieDeferred = async { movieApi.getMovieById(movieId) }
+                    val watchlistDeferred = async { watchlistApi.isInMyWatchlist(movieId) }
+                    val similarDeferred = async { movieApi.getSimilarMovies(movieId) }
+
+                    val resp = movieDeferred.await()
+                    val checkResp = watchlistDeferred.await()
+                    val similarResp = similarDeferred.await()
+
+                    if (resp.isSuccessful) {
+                        _uiState.update { it.copy(loading = false, movie = resp.body()) }
+                    } else {
+                        _uiState.update { it.copy(loading = false, error = "HTTP ${resp.code()} ${resp.message()}") }
+                    }
+                    if (checkResp.isSuccessful) {
+                        _uiState.update { it.copy(inWatchlist = checkResp.body() ?: false) }
+                    } else {
+                        _uiState.update { it.copy(inWatchlist = false) }
+                    }
+                    if (similarResp.isSuccessful) {
+                        val body = similarResp.body() ?: SimilarMoviesResponse()
+                        _uiState.update {
+                            it.copy(similarByDirector = body.byDirector, similarByGenre = body.byGenre)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loading = false, error = e.message) }
             }
-            try {
-                val similarResp = movieApi.getSimilarMovies(movieId)
-                if (similarResp.isSuccessful) {
-                    val body = similarResp.body() ?: SimilarMoviesResponse()
-                    _uiState.update {
-                        it.copy(similarByDirector = body.byDirector, similarByGenre = body.byGenre)
-                    }
-                }
-            } catch (_: Exception) { }
         }
     }
 

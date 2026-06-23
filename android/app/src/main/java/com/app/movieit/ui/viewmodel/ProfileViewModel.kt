@@ -20,6 +20,8 @@ import com.app.movieit.data.model.WatchlistItemWithMovie
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,34 +92,43 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
-                val meResp = authApi.getMe()
-                val diaryResp = diaryApi.getMyDiary()
-                val watchResp = watchlistApi.getMyWatchlist()
-                val reviewResp = reviewApi.getMyReviews()
-                val statsResp = authApi.getProfileStats()
+                coroutineScope {
+                    val meDeferred = async { authApi.getMe() }
+                    val diaryDeferred = async { diaryApi.getMyDiary() }
+                    val watchDeferred = async { watchlistApi.getMyWatchlist() }
+                    val reviewDeferred = async { reviewApi.getMyReviews() }
+                    val statsDeferred = async { authApi.getProfileStats() }
 
-                val myId = if (meResp.isSuccessful) meResp.body()?.id else null
-                val profileResp = myId?.let { userApi.getUserProfile(it) }
+                    val meResp = meDeferred.await()
+                    val myId = if (meResp.isSuccessful) meResp.body()?.id else null
+                    val profileDeferred = myId?.let { async { userApi.getUserProfile(it) } }
 
-                _uiState.update {
-                    it.copy(
-                        loading = false,
-                        userId = myId ?: it.userId,
-                        profilePictureUrl = if (meResp.isSuccessful) meResp.body()?.profilePictureUrl else it.profilePictureUrl,
-                        watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
-                        diaryEntries = if (diaryResp.isSuccessful) diaryResp.body().orEmpty() else it.diaryEntries,
-                        reviews = if (reviewResp.isSuccessful) reviewResp.body().orEmpty() else it.reviews,
-                        watchlistItems = if (watchResp.isSuccessful) watchResp.body().orEmpty() else it.watchlistItems,
-                        favoriteGenre = if (statsResp.isSuccessful) statsResp.body()?.favoriteGenre else it.favoriteGenre,
-                        diaryCount = if (profileResp?.isSuccessful == true) profileResp.body()?.moviesWatchedCount ?: it.diaryCount else it.diaryCount,
-                        reviewsCount = if (profileResp?.isSuccessful == true) profileResp.body()?.reviewsCount ?: it.reviewsCount else it.reviewsCount,
-                        followersCount = if (profileResp?.isSuccessful == true) profileResp.body()?.followersCount ?: it.followersCount else it.followersCount,
-                        followingCount = if (profileResp?.isSuccessful == true) profileResp.body()?.followingCount ?: it.followingCount else it.followingCount,
-                        bio = if (profileResp?.isSuccessful == true) profileResp.body()?.bio else it.bio,
-                        coverPhotoUrl = if (profileResp?.isSuccessful == true) profileResp.body()?.coverPhotoUrl else it.coverPhotoUrl,
-                        topMovies = if (profileResp?.isSuccessful == true) profileResp.body()?.topMovies ?: it.topMovies else it.topMovies,
-                        averageRating = if (profileResp?.isSuccessful == true) profileResp.body()?.averageRating else it.averageRating,
-                    )
+                    val diaryResp = diaryDeferred.await()
+                    val watchResp = watchDeferred.await()
+                    val reviewResp = reviewDeferred.await()
+                    val statsResp = statsDeferred.await()
+                    val profileResp = profileDeferred?.await()
+
+                    _uiState.update {
+                        it.copy(
+                            loading = false,
+                            userId = myId ?: it.userId,
+                            profilePictureUrl = if (meResp.isSuccessful) meResp.body()?.profilePictureUrl else it.profilePictureUrl,
+                            watchlistCount = if (watchResp.isSuccessful) (watchResp.body()?.size ?: 0) else it.watchlistCount,
+                            diaryEntries = if (diaryResp.isSuccessful) diaryResp.body().orEmpty() else it.diaryEntries,
+                            reviews = if (reviewResp.isSuccessful) reviewResp.body().orEmpty() else it.reviews,
+                            watchlistItems = if (watchResp.isSuccessful) watchResp.body().orEmpty() else it.watchlistItems,
+                            favoriteGenre = if (statsResp.isSuccessful) statsResp.body()?.favoriteGenre else it.favoriteGenre,
+                            diaryCount = if (profileResp?.isSuccessful == true) profileResp.body()?.moviesWatchedCount ?: it.diaryCount else it.diaryCount,
+                            reviewsCount = if (profileResp?.isSuccessful == true) profileResp.body()?.reviewsCount ?: it.reviewsCount else it.reviewsCount,
+                            followersCount = if (profileResp?.isSuccessful == true) profileResp.body()?.followersCount ?: it.followersCount else it.followersCount,
+                            followingCount = if (profileResp?.isSuccessful == true) profileResp.body()?.followingCount ?: it.followingCount else it.followingCount,
+                            bio = if (profileResp?.isSuccessful == true) profileResp.body()?.bio else it.bio,
+                            coverPhotoUrl = if (profileResp?.isSuccessful == true) profileResp.body()?.coverPhotoUrl else it.coverPhotoUrl,
+                            topMovies = if (profileResp?.isSuccessful == true) profileResp.body()?.topMovies ?: it.topMovies else it.topMovies,
+                            averageRating = if (profileResp?.isSuccessful == true) profileResp.body()?.averageRating else it.averageRating,
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loading = false, error = e.message) }

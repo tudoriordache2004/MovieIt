@@ -55,6 +55,9 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 def get_user_by_username(db: Session, username: str) -> Optional[User]:
     return db.query(User).filter(User.username == username).first()
 
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    return db.query(User).filter(User.id == user_id).first()
+
 def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
     user = get_user_by_username(db, username) or get_user_by_email(db, username)
     if not user:
@@ -98,13 +101,15 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if not username:
+        # sub contine user_id (int ca string) pentru stabilitate la schimbarea username-ului
+        sub = payload.get("sub")
+        if not sub:
             raise credentials_exception
-    except JWTError:
+        user_id = int(sub)
+    except (JWTError, ValueError, TypeError):
         raise credentials_exception
 
-    user = get_user_by_username(db, username)
+    user = get_user_by_id(db, user_id)
     if user is None:
         raise credentials_exception
     return user
@@ -150,7 +155,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username},
+        data={"sub": str(user.id)},  # id stabil, nu username (care poate fi modificat)
         expires_minutes=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}

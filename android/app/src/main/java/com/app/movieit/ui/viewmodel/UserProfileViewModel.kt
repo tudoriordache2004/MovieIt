@@ -21,6 +21,8 @@ import com.app.movieit.data.model.WatchlistItemWithMovie
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,22 +80,30 @@ class UserProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = null) }
             try {
-                val resp = userApi.getUserProfile(userId)
-                val diaryResp = diaryApi.getUserDiary(userId)
-                val reviewsResp = reviewApi.getReviewsByUser(userId)
-                val watchlistResp = watchlistApi.getUserWatchlist(userId)
-                if (resp.isSuccessful) {
-                    _uiState.update {
-                        it.copy(
-                            loading = false,
-                            profile = resp.body(),
-                            diaryEntries = if (diaryResp.isSuccessful) diaryResp.body().orEmpty() else it.diaryEntries,
-                            reviews = if (reviewsResp.isSuccessful) reviewsResp.body().orEmpty() else it.reviews,
-                            watchlistItems = if (watchlistResp.isSuccessful) watchlistResp.body().orEmpty() else it.watchlistItems,
-                        )
+                coroutineScope {
+                    val profileDeferred = async { userApi.getUserProfile(userId) }
+                    val diaryDeferred = async { diaryApi.getUserDiary(userId) }
+                    val reviewsDeferred = async { reviewApi.getReviewsByUser(userId) }
+                    val watchlistDeferred = async { watchlistApi.getUserWatchlist(userId) }
+
+                    val resp = profileDeferred.await()
+                    val diaryResp = diaryDeferred.await()
+                    val reviewsResp = reviewsDeferred.await()
+                    val watchlistResp = watchlistDeferred.await()
+
+                    if (resp.isSuccessful) {
+                        _uiState.update {
+                            it.copy(
+                                loading = false,
+                                profile = resp.body(),
+                                diaryEntries = if (diaryResp.isSuccessful) diaryResp.body().orEmpty() else it.diaryEntries,
+                                reviews = if (reviewsResp.isSuccessful) reviewsResp.body().orEmpty() else it.reviews,
+                                watchlistItems = if (watchlistResp.isSuccessful) watchlistResp.body().orEmpty() else it.watchlistItems,
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(loading = false, error = "HTTP ${resp.code()}") }
                     }
-                } else {
-                    _uiState.update { it.copy(loading = false, error = "HTTP ${resp.code()}") }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(loading = false, error = e.message) }

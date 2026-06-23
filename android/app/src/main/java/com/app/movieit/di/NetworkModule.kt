@@ -27,6 +27,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -40,6 +41,8 @@ object NetworkModule {
         TokenManager(context)
 
     // citeste token-ul ii adauga Bearer si trimite la FastAPI
+    // Un raspuns 401 pe orice endpoint ne-auth inseamna ca token-ul e invalid/expirat →
+    // il stergem din DataStore; AuthGateViewModel detecteaza null-ul si redirectioneaza la login.
     @Provides
     @Singleton
     fun provideAuthInterceptor(tokenManager: TokenManager): Interceptor = Interceptor { chain ->
@@ -51,17 +54,32 @@ object NetworkModule {
         } else {
             chain.request()
         }
-        chain.proceed(request)
+        val response = chain.proceed(request)
+        // Curata token-ul la 401, dar nu pentru login/register (care returneaza 401 legitim)
+        val path = request.url.encodedPath
+        val isAuthEndpoint = path.contains("auth/login") || path.contains("auth/register")
+        if (response.code == 401 && !isAuthEndpoint) {
+            kotlinx.coroutines.runBlocking { tokenManager.clearToken() }
+        }
+        response
     }
 
     // ok-ul pentru request, foloseste interceptor-ul si HttpLogingInterceptor pentru raspunsurile din Logcat
     @Provides
     @Singleton
     fun provideOkHttpClient(authInterceptor: Interceptor): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+        val logging = HttpLoggingInterceptor().apply {
+            level = if (com.app.movieit.BuildConfig.DEBUG)
+                HttpLoggingInterceptor.Level.BASIC
+            else
+                HttpLoggingInterceptor.Level.NONE
+        }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 

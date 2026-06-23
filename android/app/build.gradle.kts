@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,9 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     id("com.google.dagger.hilt.android")
 }
+
+val localProps = Properties()
+localProps.load(rootProject.file("local.properties").inputStream())
 
 android {
     namespace = "com.app.movieit"
@@ -18,6 +23,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "BASE_URL", "\"${localProps.getProperty("base.url")}\"")
     }
 
     buildTypes {
@@ -38,6 +45,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

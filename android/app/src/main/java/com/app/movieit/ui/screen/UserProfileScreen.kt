@@ -339,7 +339,7 @@ fun UserProfileScreen(
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Text(
-                                    text = profile.averageRating?.let { "%.1f".format(it) } ?: "—",
+                                    text = profile.averageRating?.let { "%.1f".format(it / 2.0) } ?: "—",
                                     color = GlowPurple,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,

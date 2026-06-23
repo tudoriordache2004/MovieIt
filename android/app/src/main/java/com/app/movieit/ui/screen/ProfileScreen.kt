@@ -243,7 +243,7 @@ fun ProfileScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Icon(Icons.Default.Star, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(14.dp))
-                                Text(state.averageRating?.let { "%.1f".format(it) } ?: "—", color = GlowPurple, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text(state.averageRating?.let { "%.1f".format(it / 2.0) } ?: "—", color = GlowPurple, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
                             Text("Avg", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                         }
@@ -256,7 +256,8 @@ fun ProfileScreen(
                         Spacer(Modifier.height(10.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (i in 0..3) {
-                                OwnTopMovieSlot(movie = state.topMovies.getOrNull(i), modifier = Modifier.weight(1f))
+                                val movie = state.topMovies.getOrNull(i)
+                                OwnTopMovieSlot(movie = movie, modifier = Modifier.weight(1f), onClick = { movie?.let { onMovieClick(it.id) } })
                             }
                         }
                     }
@@ -391,13 +392,14 @@ private fun OwnStatDivider() {
 }
 
 @Composable
-private fun OwnTopMovieSlot(movie: MovieMini?, modifier: Modifier = Modifier) {
+private fun OwnTopMovieSlot(movie: MovieMini?, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Box(
         modifier = modifier
             .aspectRatio(2f / 3f)
             .clip(RoundedCornerShape(8.dp))
             .background(CardBg)
-            .border(1.dp, if (movie != null) BorderColor else TextSecondary.copy(alpha = 0.25f), RoundedCornerShape(8.dp)),
+            .border(1.dp, if (movie != null) BorderColor else TextSecondary.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .then(if (movie != null) Modifier.clickable { onClick() } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (movie != null) {

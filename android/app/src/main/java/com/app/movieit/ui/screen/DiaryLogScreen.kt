@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +23,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -138,7 +141,7 @@ fun DiaryLogScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(bottom = 32.dp)
+                        .padding(bottom = 100.dp)
                 ) {
                     // Movie info row
                     Row(
@@ -326,20 +329,40 @@ fun DiaryLogScreen(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.align(Alignment.Center)
             )
-            TextButton(
+        }
+
+        // ── Bottom Save button ───────────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, ScreenBg, ScreenBg)
+                    )
+                )
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+        ) {
+            Button(
                 onClick = { if (!state.posting) viewModel.save() },
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                enabled = !state.posting,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
             ) {
                 if (state.posting) {
                     CircularProgressIndicator(
-                        color = AccentPurple,
-                        modifier = Modifier.size(16.dp),
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp
                     )
                 } else {
                     Text(
                         text = "Save",
-                        color = AccentPurple,
+                        color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

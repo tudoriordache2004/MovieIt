@@ -210,7 +210,7 @@ private fun ProfileActivityCard(
             if (rating != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(14.dp))
-                    Text("$rating/10", color = GoldAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("%.1f/5".format(rating / 2f), color = GoldAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
             val trimmedBody = body?.trim().orEmpty()

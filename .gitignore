@@ -57,3 +57,7 @@ backend/*.png
 backend/*.webp
 
 docs/
+
+tests/
+
+.claude/

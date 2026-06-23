@@ -40,6 +40,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.LaunchedEffect
+import com.app.movieit.ui.viewmodel.RootSessionViewModel
 import com.app.movieit.ui.screen.ActivityFeedScreen
 import com.app.movieit.ui.screen.AuthGateScreen
 import com.app.movieit.ui.screen.DiaryLogScreen
@@ -82,6 +84,28 @@ fun AppNav() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Observa stergerea token-ului (declanșata de interceptor la 401 sau de logout manual)
+    // si redirectioneaza catre login indiferent de ecranul curent.
+    val rootVm: RootSessionViewModel = hiltViewModel()
+    val authRoutes = remember { setOf(Routes.AUTH_GATE, Routes.LOGIN, Routes.REGISTER) }
+    LaunchedEffect(Unit) {
+        var hadToken = false
+        rootVm.tokenFlow.collect { token ->
+            if (!token.isNullOrBlank()) {
+                hadToken = true
+            } else if (hadToken) {
+                // Token-ul a fost sters dupa ce exista → sesiune expirata/invalida
+                val route = navController.currentDestination?.route
+                if (route != null && route !in authRoutes) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+    }
 
     val showBottomNav = currentRoute in bottomNavRoutes ||
             currentRoute?.startsWith("movie/") == true ||
